@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="bg" data-theme="black-blue">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>DocOS — Личен архив, термини и напомняния</title>
+  <meta name="description" content="DocOS е личен PWA архив за документи, термини и напомняния. Работи офлайн, синхронизира локално, защитен с PIN."/>
+  <meta name="robots" content="index, follow"/>
+  <link rel="canonical" href="https://docos.bgpomosht.eu/"/>
+
+  <meta property="og:type" content="website"/>
+  <meta property="og:title" content="DocOS — Личен архив, термини и напомняния"/>
+  <meta property="og:description" content="PWA за документи, термини и напомняния. Работи офлайн, защитен с PIN."/>
+  <meta property="og:url" content="https://docos.bgpomosht.eu/"/>
+  <meta property="og:image" content="https://docos.bgpomosht.eu/icons/icon-512.png"/>
+  <meta property="og:locale" content="bg_BG"/>
+  <meta property="og:site_name" content="DocOS"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="DocOS"/>
+  <meta name="twitter:description" content="Личен архив, термини и напомняния — работи офлайн."/>
+  <meta name="twitter:image" content="https://docos.bgpomosht.eu/icons/icon-512.png"/>
+
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="DocOS"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#05070b"/>
+</head>
+<body>
+  <!-- PIN LOCK SCREEN -->
+  <div class="pin-lock-screen" id="pinLockScreen" style="display:none">
+    <div class="pin-lock-content">
+      <div class="pin-lock-logo">🔐</div>
+      <div class="pin-lock-title" id="pinLockTitle">Въведи PIN</div>
+      <div class="pin-lock-subtitle" id="pinLockSubtitle">Докосни цифрите за отключване</div>
+      <div class="pin-dots" id="pinDots">
+        <div class="pin-dot" data-idx="0"></div>
+        <div class="pin-dot" data-idx="1"></div>
+        <div class="pin-dot" data-idx="2"></div>
+        <div class="pin-dot" data-idx="3"></div>
+      </div>
+      <div class="pin-error" id="pinError" style="display:none">Грешен PIN</div>
+      <div class="pin-keypad">
+        <button class="pin-key" data-digit="1">1</button>
+        <button class="pin-key" data-digit="2">2</button>
+        <button class="pin-key" data-digit="3">3</button>
+        <button class="pin-key" data-digit="4">4</button>
+        <button class="pin-key" data-digit="5">5</button>
+        <button class="pin-key" data-digit="6">6</button>
+        <button class="pin-key" data-digit="7">7</button>
+        <button class="pin-key" data-digit="8">8</button>
+        <button class="pin-key" data-digit="9">9</button>
+        <button class="pin-key pin-key-empty"></button>
+        <button class="pin-key" data-digit="0">0</button>
+        <button class="pin-key pin-key-delete" id="pinDeleteBtn">⌫</button>
+      </div>
+    </div>
+  </div>
+  <!-- Hidden file inputs -->
+  <input type="file" id="fileInput" accept="*/*" multiple style="display:none"/>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none"/>
+  <input type="file" id="folderFileInput" accept="*/*" multiple style="display:none"/>
+  <input type="file" id="folderCameraInput" accept="image/*" capture="environment" style="display:none"/>
+  <input type="file" id="backupImportInput" accept=".zip,application/zip" style="display:none"/>
+  <input type="file" id="cinemaFileInput" accept="video/*" multiple style="display:none"/>
+  <input type="file" id="cinemaSubInput" accept=".srt,.vtt,.sub,.txt" style="display:none"/>
+
+  <div id="app">
+    <!-- TOP BAR -->
+    <header class="topbar" id="topbar">
+      <div class="topbar-left">
+        <span class="app-logo">DocOS</span>
+        <span class="app-version" id="appVersionBadge">v4.8.0</span>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="themeToggleBtn" title="Тема">🎨</button>
+        <button class="icon-btn notif-icon-btn" id="notifBtn" title="Известия">🔔<span class="notif-dot" id="notifDot" style="display:none"></span></button>
+      </div>
+    </header>
+
+    <!-- SCREENS -->
+    <main id="mainContent">
+
+      <!-- DASHBOARD -->
+      <section class="screen active" id="screen-dashboard">
+        <div class="screen-scroll">
+
+          <!-- Hero -->
+          <div class="dash-hero">
+            <div class="dash-hero-greeting" id="dashGreeting">Добър ден</div>
+            <div class="dash-hero-time" id="clockTime">00:00</div>
+            <div class="dash-hero-date"><span id="clockWeekday">—</span> · <span id="clockDate">—</span></div>
+            <div class="dash-hero-storage-pill" id="dashHeroStorage">
+              <span class="dash-hero-storage-dot"></span>
+              <span class="dash-hero-storage-text" id="dashHeroStorageText">Памет: 0%</span>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="dash-stats">
+            <div class="dash-stat-card">
+              <div class="dash-stat-num" id="statDocs">0</div>
+              <div class="dash-stat-label">Документа</div>
+            </div>
+            <div class="dash-stat-card">
+              <div class="dash-stat-num" id="statFolders">0</div>
+              <div class="dash-stat-label">Папки</div>
+            </div>
+            <div class="dash-stat-card">
+              <div class="dash-stat-num" id="statPending">0</div>
+              <div class="dash-stat-label">За преглед</div>
+            </div>
+            <div class="dash-stat-card dash-stat-storage">
+              <div class="dash-stat-num" id="dashStoragePct">0%</div>
+              <div class="dash-stat-label">Памет</div>
+              <div class="dash-storage-micro-bar"><div class="dash-storage-micro-fill" id="dashStorageMicroFill"></div></div>
+            </div>
+          </div>
+
+          <!-- Storage Premium Widget -->
+          <div class="dash-storage-widget card-premium" id="dashStorageWidget">
+            <div class="dash-storage-header">
+              <div class="dash-storage-title-row">
+                <span class="dash-storage-icon">💾</span>
+                <span class="dash-storage-label">Локална памет</span>
+              </div>
+              <span class="dash-storage-health" id="dashStorageHealth">Стабилно</span>
+            </div>
+            <div class="dash-storage-bar-wrap">
+              <div class="dash-storage-bar">
+                <div class="dash-storage-bar-fill" id="dashStorageBarFill"></div>
+              </div>
+            </div>
+            <div class="dash-storage-meta">
+              <span id="dashStorageUsed">0 KB</span>
+              <span id="dashStorageFree">Свободно: —</span>
+            </div>
+            <div class="dash-storage-persist-row" id="dashPersistRow" style="display:none">
+              <span class="dash-persist-warn">⚠ Паметта не е защитена</span>
+              <button class="dash-persist-btn" id="dashPersistBtn">Защити</button>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="dash-actions">
+            <button class="dash-action-btn" id="dashQuickUploadBtn">
+              <span class="dash-action-ico">📎</span>
+              <span class="dash-action-text">Качи</span>
+            </button>
+            <button class="dash-action-btn" id="dashQuickCameraBtn">
+              <span class="dash-action-ico">📷</span>
+              <span class="dash-action-text">Снимай</span>
+            </button>
+            <button class="dash-action-btn" id="dashQuickFolderBtn">
+              <span class="dash-action-ico">📁</span>
+              <span class="dash-action-text">Папка</span>
+            </button>
+            <button class="dash-action-btn" id="dashQuickDeadlineBtn">
+              <span class="dash-action-ico">⏰</span>
+              <span class="dash-action-text">Срок</span>
+            </button>
+          </div>
+
+          <!-- Calendar Mini -->
+          <div class="dash-calendar-wrap card-premium">
+            <div class="section-header" style="padding:0;margin-bottom:.5rem">
+              <span class="section-title">Календар</span>
+            </div>
+            <div class="calendar-mini" id="calendarMini"></div>
+          </div>
+
+          <!-- Folders -->
+          <div class="section-header">
+            <span class="section-title">Папки</span>
+            <button class="link-btn" id="dashFoldersOpenBtn">Всички</button>
+          </div>
+          <div id="dashFolderRail" class="dash-folder-rail"></div>
+
+          <!-- Queue -->
+          <div class="section-header">
+            <span class="section-title">Опашка</span>
+            <button class="link-btn" id="dashGoScanBtn">Виж</button>
+          </div>
+          <div id="dashQueueSnapshot" class="queue-snapshot"></div>
+
+          <!-- Deadlines -->
+          <div class="section-header">
+            <span class="section-title">Срокове</span>
+            <button class="link-btn" id="addDeadlineBtn">+ Нов</button>
+          </div>
+          <div id="deadlinesList" class="deadlines-list"></div>
+
+          <!-- Recent Docs -->
+          <div class="section-header">
+            <span class="section-title">Последни</span>
+            <button class="link-btn" id="dashViewAllBtn">Всички</button>
+          </div>
+          <div id="recentDocsList" class="recent-docs-list"></div>
+        </div>
+      </section>
+
+      <!-- DOCUMENTS -->
+      <section class="screen" id="screen-documents">
+        <div class="screen-scroll">
+          <div class="search-bar-wrap">
+            <input type="text" class="search-input" id="docSearch" placeholder="🔍  Търси документ, име, email, адрес..."/>
+          </div>
+          <div class="filter-row" id="docFilterRow">
+            <button class="filter-chip active" data-filter="all">Всички</button>
+            <button class="filter-chip" data-filter="pending">За преглед</button>
+            <button class="filter-chip" data-filter="saved">Запазени</button>
+            <button class="filter-chip" data-filter="image">Снимки</button>
+            <button class="filter-chip" data-filter="video">Видео</button>
+            <button class="filter-chip" data-filter="pdf">PDF</button>
+            <button class="filter-chip" data-filter="duplicates">Дубликати</button>
+          </div>
+          <div class="advanced-filter-card card-premium">
+            <div class="advanced-filter-grid">
+              <div class="advanced-filter-group">
+                <label class="advanced-filter-label">Тип</label>
+                <select id="docTypeFilter" class="pass6-select">
+                  <option value="all">Всички типове</option>
+                </select>
+              </div>
+              <div class="advanced-filter-group">
+                <label class="advanced-filter-label">Папка</label>
+                <select id="docFolderFilter" class="pass6-select">
+                  <option value="all">Всички папки</option>
+                </select>
+              </div>
+              <div class="advanced-filter-group advanced-filter-group--full">
+                <label class="advanced-filter-label">Тагове</label>
+                <select id="docTagFilter" class="pass6-select" multiple></select>
+              </div>
+            </div>
+            <div class="advanced-filter-actions">
+              <button class="filter-chip" id="docClearFiltersBtn" type="button">Изчисти филтрите</button>
+              <div class="advanced-filter-summary" id="docFilterSummary">Всички документи</div>
+            </div>
+          </div>
+
+          <div id="duplicatePanel" class="duplicate-panel" style="display:none"></div>
+
+          <!-- Folders -->
+          <div class="section-header">
+            <span class="section-title">Папки</span>
+            <button class="link-btn" id="createFolderBtn">+ Нова папка</button>
+          </div>
+          <div id="folderGrid" class="folder-grid"></div>
+
+          <!-- Documents list -->
+          <div class="section-header" style="margin-top:1.2rem">
+            <span class="section-title">Документи</span>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <div class="view-toggle" id="docViewToggle">
+                <button class="view-toggle-btn active" data-view="list" title="Списък">☰</button>
+                <button class="view-toggle-btn" data-view="gallery" title="Галерия">⊞</button>
+              </div>
+              <select class="sort-select" id="docSortSelect">
+                <option value="newest">Най-нови</option>
+                <option value="oldest">Най-стари</option>
+                <option value="name">По име</option>
+                <option value="confidence">По увереност</option>
+              </select>
+            </div>
+          </div>
+          <div id="docList" class="doc-list"></div>
+        </div>
+      </section>
+
+      <!-- FOLDER DETAIL -->
+      <section class="screen" id="screen-folder-detail">
+        <div class="folder-detail-header">
+          <button class="back-btn" id="folderBackBtn">← Назад</button>
+          <div class="folder-detail-title-wrap">
+            <span class="folder-detail-icon" id="folderDetailIcon">📁</span>
+            <span class="folder-detail-name" id="folderDetailName">Папка</span>
+          </div>
+          <div class="folder-detail-actions">
+            <button class="icon-btn" id="folderUploadBtn" title="Качи файл">📎</button>
+            <button class="icon-btn" id="folderCameraBtn" title="Камера">📷</button>
+          </div>
+        </div>
+        <div class="screen-scroll">
+          <div id="folderLocalSummary" class="folder-local-summary" style="display:none"></div>
+          <div id="folderLocalQueue" class="folder-local-queue" style="display:none"></div>
+          <div id="folderDocList" class="doc-list"></div>
+          <div id="folderEmptyState" class="empty-state" style="display:none">
+            <div class="empty-icon">📂</div>
+            <div class="empty-text">Папката е празна</div>
+            <div class="empty-sub">Качи документ или снимай с камерата от бутоните горе.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCAN / INTAKE -->
+      <section class="screen" id="screen-scan">
+        <div class="screen-scroll">
+          <div class="scan-actions-row">
+            <button class="scan-action-btn" id="scanUploadBtn">
+              <span class="scan-action-icon">📎</span>
+              <span>Файл</span>
+            </button>
+            <button class="scan-action-btn" id="scanCameraBtn">
+              <span class="scan-action-icon">📷</span>
+              <span>Камера</span>
+            </button>
+            <button class="scan-action-btn" id="scanImportBtn">
+              <span class="scan-action-icon">🌐</span>
+              <span>Импорт</span>
+            </button>
+          </div>
+
+          <div class="section-header">
+            <span class="section-title">Опашка за преглед</span>
+            <span class="queue-count badge" id="queueCount">0</span>
+          </div>
+          <div id="intakeQueue" class="intake-queue"></div>
+
+          <div id="scanEmptyState" class="empty-state">
+            <div class="empty-icon">📥</div>
+            <div class="empty-text">Качи файл</div>
+            <div class="empty-sub">Снимки, PDF, видео или документ. DocOS анализира, разпознава текст и подрежда автоматично.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AGENT (moved to more section access) -->
+      <section class="screen" id="screen-agent">
+        <div class="screen-scroll">
+          <div class="agent-header-card card-premium">
+            <div class="agent-avatar">🧠</div>
+            <div class="agent-header-text">
+              <div class="agent-title">DocOS Анализатор</div>
+              <div class="agent-sub">OCR · Извличане · Класификация</div>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <span class="section-title">Избери документ</span>
+          </div>
+          <select class="sort-select full-width" id="agentDocSelect">
+            <option value="">— Избери документ —</option>
+          </select>
+
+          <div id="agentDocPanel" class="agent-doc-panel" style="display:none"></div>
+          <div id="agentActionsPanel" class="agent-actions-panel" style="display:none"></div>
+          <div id="agentResultPanel" class="agent-result-panel" style="display:none"></div>
+          <div id="agentEmptyState" class="empty-state">
+            <div class="empty-icon">🧠</div>
+            <div class="empty-text">Анализатор</div>
+            <div class="empty-sub">Избери документ за OCR анализ, извличане на текст, полета и автоматична класификация.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CINEMA -->
+      <section class="screen" id="screen-cinema">
+        <div class="screen-scroll">
+
+          <!-- Cinema Player Area -->
+          <div class="cinema-player-wrap card-premium" id="cinemaPlayerWrap">
+            <div class="cinema-viewport" id="cinemaViewport">
+              <video class="cinema-video" id="cinemaVideo" playsinline preload="metadata"></video>
+              <track kind="subtitles" id="cinemaSubTrack" src="" srclang="bg" label="Български" default/>
+              <div class="cinema-overlay" id="cinemaOverlay">
+                <button class="cinema-big-play" id="cinemaBigPlay">▶</button>
+              </div>
+              <div class="cinema-seek-indicator left" id="cinemaSeekLeft">-10s</div>
+              <div class="cinema-seek-indicator right" id="cinemaSeekRight">+10s</div>
+              <div class="cinema-speed-badge" id="cinemaSpeedBadge"><span id="cinemaSpeedLabel">1x</span></div>
+              <div class="cinema-sub-display" id="cinemaSubDisplay"></div>
+              <div class="cinema-info-badge" id="cinemaInfoBadge" style="display:none">
+                <span id="cinemaResolution">—</span>
+              </div>
+            </div>
+            <div class="cinema-controls" id="cinemaControls">
+              <div class="cinema-progress-wrap" id="cinemaProgressWrap">
+                <div class="cinema-progress-bar">
+                  <div class="cinema-progress-fill" id="cinemaProgressFill"></div>
+                  <div class="cinema-progress-buffer" id="cinemaProgressBuffer"></div>
+                </div>
+              </div>
+              <div class="cinema-controls-row">
+                <button class="cinema-ctrl-btn" id="cinemaPlayPause">▶</button>
+                <button class="cinema-ctrl-btn" id="cinemaRewind">⏪</button>
+                <span class="cinema-time" id="cinemaTime">0:00 / 0:00</span>
+                <button class="cinema-ctrl-btn speed-btn" id="cinemaSpeed">1x</button>
+                <button class="cinema-ctrl-btn" id="cinemaForward">⏩</button>
+                <button class="cinema-ctrl-btn" id="cinemaPiP" title="Picture in Picture">🖼</button>
+                <button class="cinema-ctrl-btn" id="cinemaFullscreen" title="Цял екран">⛶</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cinema Empty State -->
+          <div class="cinema-empty" id="cinemaEmpty">
+            <div class="empty-icon">🎬</div>
+            <div class="empty-text">DocOS Cinema</div>
+            <div class="empty-sub">Качи филм или видео и го гледай с premium player, субтитри и picture-in-picture.</div>
+          </div>
+
+          <!-- Cinema Actions -->
+          <div class="cinema-actions">
+            <button class="cinema-action-btn" id="cinemaLoadFileBtn">
+              <span class="cinema-action-ico">🎬</span>
+              <span>Качи видео</span>
+            </button>
+            <button class="cinema-action-btn" id="cinemaLoadSubBtn">
+              <span class="cinema-action-ico">💬</span>
+              <span>Субтитри (.srt)</span>
+            </button>
+          </div>
+
+          <!-- Now Playing -->
+          <div class="cinema-now-playing" id="cinemaNowPlaying" style="display:none">
+            <div class="section-header">
+              <span class="section-title">Сега</span>
+            </div>
+            <div class="cinema-now-card" id="cinemaNowCard"></div>
+          </div>
+
+          <!-- Playlist -->
+          <div class="section-header" style="margin-top:1rem">
+            <span class="section-title">Плейлист</span>
+            <span class="queue-count badge" id="cinemaPlaylistCount">0</span>
+          </div>
+          <div id="cinemaPlaylist" class="cinema-playlist"></div>
+
+        </div>
+      </section>
+
+      <!-- MORE / SETTINGS -->
+      <section class="screen" id="screen-more">
+        <div class="screen-scroll">
+          <div class="settings-group" id="themeSection">
+            <div class="settings-group-title">Тема</div>
+            <div class="theme-grid" id="themeGrid"></div>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-group-title">Съхранение</div>
+            <div class="storage-bar-wrap">
+              <div class="storage-bar"><div class="storage-bar-fill" id="storageBarFill"></div></div>
+              <div class="storage-labels">
+                <span id="storageUsed">0 KB</span>
+                <span id="storageTotal">5 MB</span>
+              </div>
+            </div>
+            <div class="settings-storage-detail">
+              <div class="settings-item">
+                <span>Реално ползвано</span><span class="settings-value" id="storageRealUsedDash">0 KB</span>
+              </div>
+              <div class="settings-item">
+                <span>Квота</span><span class="settings-value" id="storageRealLimitDash">~5 MB</span>
+              </div>
+              <div class="settings-item">
+                <span>Запазване</span><span class="settings-value" id="storagePersistTruth">—</span>
+              </div>
+              <div class="settings-item">
+                <span>Здравен статус</span><span class="settings-value" id="storageHealthPill">Стабилно</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-group-title">Приложение</div>
+            <div class="settings-item">
+              <span>Версия</span><span class="settings-value" id="settingsVersionValue">4.5.0</span>
+            </div>
+            <div class="settings-item">
+              <span>Документи</span><span class="settings-value" id="settingsDocCount">0</span>
+            </div>
+            <div class="settings-item">
+              <span>Папки</span><span class="settings-value" id="settingsFolderCount">0</span>
+            </div>
+          </div>
+
+
+          <div class="settings-group">
+            <div class="settings-group-title">Приложение на началния екран</div>
+            <div class="settings-item">
+              <span>Режим</span><span class="settings-value" id="pwaModeValue">Браузър</span>
+            </div>
+            <div class="settings-item">
+              <span>Офлайн</span><span class="settings-value" id="pwaOfflineValue">Изключен</span>
+            </div>
+            <div class="settings-item">
+              <span>Мрежови модули</span><span class="settings-value" id="pwaRuntimeCacheValue">Празно</span>
+            </div>
+            <div class="settings-item">
+              <span>Известия</span><span class="settings-value" id="pwaNotifValue">Неактивни</span>
+            </div>
+            <div class="settings-note" id="pwaExplain">За iPhone истинските известия работят най-добре след „Добави към Начален екран“.</div>
+            <div class="backup-action-grid">
+              <button class="btn-secondary" id="pwaHelpBtn">📱 Как да го добавя</button>
+              <button class="btn-secondary" id="pwaEnableNotifBtn">🔔 Разреши известия</button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-group-title">🔐 Сигурност</div>
+            <div class="settings-item">
+              <span>PIN заключване</span>
+              <span class="settings-value" id="pinStatusValue">Изключено</span>
+            </div>
+            <div class="backup-action-grid" style="margin-top:.5rem">
+              <button class="btn-secondary" id="pinSetupBtn">🔑 Задай PIN</button>
+              <button class="btn-secondary" id="pinRemoveBtn" style="display:none">🗑 Премахни PIN</button>
+            </div>
+            <div class="settings-note">При активиран PIN, приложението се заключва при всяко отваряне и при превключване.</div>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-group-title">Данни</div>
+            <div class="backup-action-grid">
+              <button class="btn-secondary" id="exportBackupBtn">📦 Изнеси архив ZIP</button>
+              <button class="btn-secondary" id="importBackupBtn">📥 Внеси архив ZIP</button>
+            </div>
+            <div class="settings-note">Локален архив на state + файлове от IndexedDB.</div>
+            <button class="danger-btn" id="clearDataBtn">🗑 Изчисти всички данни</button>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-group-title">Бързи връзки</div>
+            <div id="quickLinksList"></div>
+            <button class="link-btn" id="addQuickLinkBtn" style="margin-top:.5rem">+ Добави връзка</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- BOTTOM DOCK -->
+    <nav class="bottom-dock" id="bottomDock">
+      <button class="dock-btn active" data-tab="dashboard" data-fx="home">
+        <span class="dock-icon">🏠</span>
+        <span class="dock-label">Начало</span>
+      </button>
+      <button class="dock-btn" data-tab="documents" data-fx="documents">
+        <span class="dock-icon">📁</span>
+        <span class="dock-label">Документи</span>
+      </button>
+      <button class="dock-btn dock-center" data-tab="scan" data-fx="scan">
+        <span class="dock-icon">＋</span>
+      </button>
+      <button class="dock-btn" data-tab="cinema" data-fx="agent">
+        <span class="dock-icon">🎬</span>
+        <span class="dock-label">Кино</span>
+      </button>
+      <button class="dock-btn" data-tab="more" data-fx="more">
+        <span class="dock-icon">⚙️</span>
+        <span class="dock-label">Още</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- SHEETS / MODALS -->
+
+  <!-- Intake Sheet -->
+  <div class="sheet-backdrop" id="intakeBackdrop" style="display:none"></div>
+  <div class="sheet" id="intakeSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Преглед на документ</div>
+    <div id="intakePreviewArea" class="intake-preview-area"></div>
+    <div class="intake-meta-form" id="intakeMetaForm"></div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="intakeCancelBtn">Отказ</button>
+      <button class="btn-primary" id="intakeSaveBtn">💾 Запази</button>
+    </div>
+  </div>
+
+  <!-- Preview Sheet -->
+  <div class="sheet-backdrop" id="previewBackdrop" style="display:none"></div>
+  <div class="sheet sheet-tall" id="previewSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="previewSheetTitle">Документ</div>
+    <div id="previewArea" class="preview-area"></div>
+    <div class="meta-panel" id="previewMetaPanel"></div>
+    <div class="sheet-actions preview-sheet-actions">
+      <button class="preview-action-btn" id="previewMarkBtn">👁 За преглед</button>
+      <button class="preview-action-btn" id="previewMoveBtn">📂 Премести</button>
+      <button class="preview-action-btn download" id="previewDownloadBtn">⬇️ Изтегли</button>
+      <button class="preview-action-btn danger" id="previewDeleteBtn">🗑 Изтрий</button>
+    </div>
+  </div>
+
+
+  <!-- Structured Field Editor -->
+  <div class="sheet-backdrop" id="fieldEditorBackdrop" style="display:none"></div>
+  <div class="sheet sheet-tall" id="fieldEditorSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Полета</div>
+    <div id="fieldEditorDocMeta" class="field-editor-docmeta"></div>
+    <div id="fieldEditorMount" class="field-editor-mount"></div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="fieldEditorCancelBtn">Отказ</button>
+      <button class="btn-secondary" id="fieldEditorSaveBtn">💾 Запази полета</button>
+      <button class="btn-primary" id="fieldEditorConfirmBtn">✅ Потвърди истина</button>
+    </div>
+  </div>
+
+  <!-- Move Sheet -->
+  <div class="sheet-backdrop" id="moveBackdrop" style="display:none"></div>
+  <div class="sheet" id="moveSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Премести в папка</div>
+    <div id="moveFolderList" class="move-folder-list"></div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="moveCancelBtn">Отказ</button>
+    </div>
+  </div>
+
+  <!-- Create Folder Sheet -->
+  <div class="sheet-backdrop" id="folderCreateBackdrop" style="display:none"></div>
+  <div class="sheet" id="folderCreateSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Нова папка</div>
+    <div class="form-group">
+      <label class="form-label">Икона</label>
+      <div class="emoji-picker" id="folderEmojiPicker"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Име на папката</label>
+      <input type="text" class="form-input" id="newFolderName" placeholder="напр. Данъчни документи"/>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="folderCreateCancelBtn">Отказ</button>
+      <button class="btn-primary" id="folderCreateSaveBtn">Създай</button>
+    </div>
+  </div>
+
+  <!-- Deadline Sheet -->
+  <div class="sheet-backdrop" id="deadlineBackdrop" style="display:none"></div>
+  <div class="sheet sheet-tall" id="deadlineSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="deadlineSheetTitle">Нов термин</div>
+    <div class="calendar-date-pill" id="deadlineSelectedDateLabel">Избери дата</div>
+    <input type="hidden" id="deadlineEditId"/>
+
+    <!-- Quick Type Chips -->
+    <div class="dl-type-chips" id="dlTypeChips">
+      <button class="dl-type-chip" type="button" data-dltype="🏥 Лекар">🏥 Лекар</button>
+      <button class="dl-type-chip" type="button" data-dltype="🏦 Банка">🏦 Банка</button>
+      <button class="dl-type-chip" type="button" data-dltype="💼 Интервю">💼 Интервю</button>
+      <button class="dl-type-chip" type="button" data-dltype="📋 Документ">📋 Документ</button>
+      <button class="dl-type-chip" type="button" data-dltype="🚗 Кола">🚗 Кола</button>
+      <button class="dl-type-chip" type="button" data-dltype="💸 Плащане">💸 Плащане</button>
+    </div>
+
+    <!-- Title -->
+    <div class="dl-field">
+      <div class="dl-field-icon">📌</div>
+      <div class="dl-field-body">
+        <label class="dl-field-label">Заглавие</label>
+        <input type="text" class="dl-field-input" id="deadlineTitle" placeholder="Какъв е термина?"/>
+      </div>
+    </div>
+
+    <!-- Note -->
+    <div class="dl-field">
+      <div class="dl-field-icon">📝</div>
+      <div class="dl-field-body">
+        <label class="dl-field-label">Бележка</label>
+        <textarea class="dl-field-input dl-field-textarea" id="deadlineNote" placeholder="Допълнителна информация..."></textarea>
+      </div>
+    </div>
+
+    <!-- Date & Time -->
+    <div class="dl-datetime-row">
+      <div class="dl-field dl-field-half">
+        <div class="dl-field-icon">📅</div>
+        <div class="dl-field-body">
+          <label class="dl-field-label">Дата</label>
+          <input type="date" class="dl-field-input" id="deadlineDate"/>
+        </div>
+      </div>
+      <div class="dl-field dl-field-half">
+        <div class="dl-field-icon">🕐</div>
+        <div class="dl-field-body">
+          <label class="dl-field-label">Час</label>
+          <input type="time" class="dl-field-input" id="deadlineTime"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color -->
+    <div class="dl-color-section">
+      <span class="dl-color-label">Цвят</span>
+      <div class="dl-color-row" id="deadlineColorRow">
+        <button class="dl-color-dot active" type="button" data-color="#3B82F6" style="--dc:#3B82F6"></button>
+        <button class="dl-color-dot" type="button" data-color="#22C55E" style="--dc:#22C55E"></button>
+        <button class="dl-color-dot" type="button" data-color="#F97316" style="--dc:#F97316"></button>
+        <button class="dl-color-dot" type="button" data-color="#A855F7" style="--dc:#A855F7"></button>
+        <button class="dl-color-dot" type="button" data-color="#EF4444" style="--dc:#EF4444"></button>
+        <button class="dl-color-dot" type="button" data-color="#EAB308" style="--dc:#EAB308"></button>
+        <button class="dl-color-dot" type="button" data-color="#06B6D4" style="--dc:#06B6D4"></button>
+        <button class="dl-color-dot" type="button" data-color="#EC4899" style="--dc:#EC4899"></button>
+      </div>
+      <input type="hidden" id="deadlineColor" value="#3B82F6"/>
+    </div>
+
+    <!-- Reminder -->
+    <div class="dl-reminder-card">
+      <div class="dl-reminder-header">
+        <label class="dl-reminder-toggle">
+          <input type="checkbox" id="deadlineReminderEnabled"/>
+          <span class="dl-toggle-track"><span class="dl-toggle-thumb"></span></span>
+          <span class="dl-reminder-text">🔔 Напомни ми</span>
+        </label>
+      </div>
+      <div class="dl-reminder-options">
+        <div class="dl-reminder-opt-row">
+          <div class="dl-field dl-field-half">
+            <div class="dl-field-body">
+              <label class="dl-field-label">Кога</label>
+              <select class="dl-field-input" id="deadlineReminderMode">
+                <option value="same">В часа</option>
+                <option value="1d" selected>1 ден по-рано</option>
+                <option value="2h">2 часа по-рано</option>
+                <option value="30m">30 мин по-рано</option>
+              </select>
+            </div>
+          </div>
+          <div class="dl-field dl-field-half">
+            <div class="dl-field-body">
+              <label class="dl-field-label">Известия</label>
+              <button class="dl-notif-btn" type="button" id="deadlineNotifPermissionBtn">🔔 Разреши</button>
+            </div>
+          </div>
+        </div>
+        <div class="dl-reminder-hint" id="deadlineReminderHint">Локално известие + системно push при PWA режим.</div>
+      </div>
+    </div>
+
+    <!-- Same day deadlines -->
+    <div class="deadline-day-block">
+      <div class="deadline-day-head">Термини за тази дата</div>
+      <div class="deadline-day-list" id="deadlineDayList"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="sheet-actions dl-actions">
+      <button class="btn-secondary" id="deadlineDeleteBtn" style="display:none">🗑 Изтрий</button>
+      <button class="btn-secondary" id="deadlineCancelBtn">Отказ</button>
+      <button class="btn-primary" id="deadlineSaveBtn">✅ Запази</button>
+    </div>
+  </div>
+
+  <!-- Известия -->
+  <div class="sheet-backdrop" id="alertsBackdrop" style="display:none"></div>
+  <div class="sheet sheet-tall" id="alertsSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Известия</div>
+    <div class="alerts-headline" id="alertsHeadline">Няма известия</div>
+    <div class="alerts-list" id="alertsList"></div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="alertsCloseBtn">Затвори</button>
+    </div>
+  </div>
+
+
+  <!-- PWA помощ -->
+  <div class="sheet-backdrop" id="pwaHelpBackdrop" style="display:none"></div>
+  <div class="sheet sheet-tall" id="pwaHelpSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Начален екран и известия</div>
+    <div class="pwa-help-copy">
+      <div class="pwa-help-step"><strong>1.</strong><span>Отвори приложението през домейн с HTTPS.</span></div>
+      <div class="pwa-help-step"><strong>2.</strong><span>На iPhone натисни „Споделяне“ в Safari.</span></div>
+      <div class="pwa-help-step"><strong>3.</strong><span>Избери „Добави към Начален екран“.</span></div>
+      <div class="pwa-help-step"><strong>4.</strong><span>Отвори DocOS от иконата на телефона, не от обикновен таб.</span></div>
+      <div class="pwa-help-step"><strong>5.</strong><span>После натисни „Разреши известия“ вътре в приложението.</span></div>
+    </div>
+    <div class="settings-note">Докато приложението е само в браузърен таб, напомнянията са вътрешни и може да не излизат като системно известие.</div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="pwaHelpCloseBtn">Затвори</button>
+    </div>
+  </div>
+
+
+  <!-- Quick Link Sheet -->
+  <div class="sheet-backdrop" id="quickLinkBackdrop" style="display:none"></div>
+  <div class="sheet" id="quickLinkSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Нова бърза връзка</div>
+    <div class="form-group">
+      <label class="form-label">URL адрес</label>
+      <input type="url" class="form-input" id="quickLinkUrl" placeholder="https://..." autocomplete="off"/>
+    </div>
+    <div class="ql-preview-card" id="qlPreviewCard" style="display:none">
+      <img class="ql-preview-icon" id="qlPreviewIcon" src="" alt=""/>
+      <div class="ql-preview-info">
+        <div class="ql-preview-name" id="qlPreviewName">—</div>
+        <div class="ql-preview-desc" id="qlPreviewDesc">—</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Име (автоматично или свое)</label>
+      <input type="text" class="form-input" id="quickLinkTitle" placeholder="попълва се автоматично"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Бележка</label>
+      <input type="text" class="form-input" id="quickLinkNote" placeholder="За какво ми е този сайт?"/>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="quickLinkCancelBtn">Отказ</button>
+      <button class="btn-primary" id="quickLinkSaveBtn">Запази</button>
+    </div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div class="sheet-backdrop" id="confirmBackdrop" style="display:none"></div>
+  <div class="sheet" id="confirmSheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="confirmTitle">Потвърди</div>
+    <div class="confirm-message" id="confirmMessage"></div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="confirmCancelBtn">Отказ</button>
+      <button class="btn-primary danger" id="confirmOkBtn">Потвърди</button>
+    </div>
+  </div>
+
+  <!-- Fullscreen Gallery Viewer -->
+  <div class="gallery-viewer" id="galleryViewer" style="display:none">
+    <div class="gallery-viewer-bg" id="galleryViewerBg"></div>
+    <div class="gallery-viewer-topbar">
+      <button class="gallery-viewer-close" id="galleryViewerClose">✕</button>
+      <span class="gallery-viewer-counter" id="galleryViewerCounter">1 / 1</span>
+      <button class="gallery-viewer-download" id="galleryViewerDownload">⬇</button>
+    </div>
+    <div class="gallery-viewer-stage" id="galleryViewerStage">
+      <img class="gallery-viewer-img" id="galleryViewerImg" src="" alt="" draggable="false"/>
+    </div>
+    <button class="gallery-viewer-nav gallery-nav-prev" id="galleryNavPrev">‹</button>
+    <button class="gallery-viewer-nav gallery-nav-next" id="galleryNavNext">›</button>
+    <div class="gallery-viewer-info" id="galleryViewerInfo"></div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" style="display:none"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/idb@8/build/umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js" defer></script>
+  <script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs';
+    import nlp from 'https://cdn.jsdelivr.net/npm/compromise@14.15.0/+esm';
+    import compromiseDates from 'https://cdn.jsdelivr.net/npm/compromise-dates@3.7.1/+esm';
+    import parsePhoneNumberFromString from 'https://cdn.jsdelivr.net/npm/libphonenumber-js@1.12.38/+esm';
+    import * as chrono from 'https://cdn.jsdelivr.net/npm/chrono-node@2.8.4/+esm';
+    import { franc } from 'https://cdn.jsdelivr.net/npm/franc-min@6.2.0/+esm';
+    import pLimit from 'https://cdn.jsdelivr.net/npm/p-limit@7.1.1/+esm';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs';
+    window.DocOSPdfJS = pdfjsLib;
+
+    try {
+      nlp.extend(compromiseDates);
+    } catch (err) {
+      console.warn('DocOS NLP dates plugin failed', err);
+    }
+    window.DocOSNLP = nlp;
+    window.DocOSParsePhoneNumber = parsePhoneNumberFromString;
+    window.DocOSChrono = chrono;
+    window.DocOSFranc = franc;
+    window.DocOSPQueueLimit = pLimit;
+
+    window.dispatchEvent(new Event('docos:pdfjs-ready'));
+    window.dispatchEvent(new Event('docos:nlp-ready'));
+    window.dispatchEvent(new Event('docos:chrono-ready'));
+    window.dispatchEvent(new Event('docos:franc-ready'));
+    window.dispatchEvent(new Event('docos:plimit-ready'));
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@2.15.2/dist/jsoneditor.min.js" defer></script>
+  <script>window.addEventListener('load',()=>window.dispatchEvent(new Event('docos:jsoneditor-ready')));</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js" defer></script>
+  <script>window.addEventListener('load',()=>window.dispatchEvent(new Event('docos:chart-ready')));</script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.1.0/dist/fuse.min.js"></script>
+  <script>window.dispatchEvent(new Event('docos:fuse-ready'));</script>
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  <script>window.dispatchEvent(new Event('docos:choices-ready'));</script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+  <script>window.dispatchEvent(new Event('docos:sortable-ready'));</script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat.js"></script>
+  <script>try{dayjs.extend(window.dayjs_plugin_customParseFormat);}catch(e){} window.dispatchEvent(new Event('docos:dayjs-ready'));</script>
+  <script src="app.js"></script>
+</body>
+</html>
+
