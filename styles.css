@@ -1225,7 +1225,11 @@ a { color: var(--accent); }
   overflow: hidden;
   border: 1px solid var(--glass-border);
 }
-.doc-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.doc-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
+}
 .doc-info { flex: 1; min-width: 0; }
 .doc-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.15rem; }
 .doc-meta-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }

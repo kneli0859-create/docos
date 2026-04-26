@@ -1357,7 +1357,7 @@ async function migrateLegacyInlineDataToIndexedDb() {
   if (changed) saveState();
 }
 
-function generateImageThumbDataUrl(file, maxSide = 480) {
+function generateImageThumbDataUrl(file, maxSide = 1080) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type || !file.type.startsWith('image/')) return reject(new Error('not an image'));
     const url = URL.createObjectURL(file);
@@ -1368,17 +1368,23 @@ function generateImageThumbDataUrl(file, maxSide = 480) {
         const w = img.naturalWidth || img.width;
         const h = img.naturalHeight || img.height;
         if (!w || !h) throw new Error('zero dimensions');
-        const scale = Math.min(1, maxSide / Math.max(w, h));
+        // Account for retina screens: render at devicePixelRatio scaled max
+        const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+        const targetMax = Math.min(maxSide * dpr, Math.max(w, h));
+        const scale = Math.min(1, targetMax / Math.max(w, h));
         const tw = Math.max(1, Math.round(w * scale));
         const th = Math.max(1, Math.round(h * scale));
         const canvas = document.createElement('canvas');
         canvas.width = tw;
         canvas.height = th;
         const ctx = canvas.getContext('2d');
+        // High-quality scaling
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, tw, th);
-        // Use jpeg for photos (smaller), png for transparency
-        const usePng = (file.type === 'image/png' || file.type === 'image/gif' || file.type === 'image/webp');
-        const data = canvas.toDataURL(usePng ? 'image/png' : 'image/jpeg', 0.82);
+        // Use jpeg for photos (much smaller), png for transparency formats
+        const usePng = (file.type === 'image/png' || file.type === 'image/gif');
+        const data = canvas.toDataURL(usePng ? 'image/png' : 'image/jpeg', 0.92);
         URL.revokeObjectURL(url);
         resolve(data);
       } catch (e) {
@@ -6406,6 +6412,7 @@ async function openGalleryViewer(docId, contextDocs = null) {
     id: d.id,
     title: d.title || d.originalFileName || 'Снимка',
     blobKey: d.blobKey,
+    inlineDataUrl: d.inlineDataUrl || '',
     previewDataUrl: d.previewDataUrl || '',
     fileName: d.originalFileName || '',
     fileSize: d.fileSize || 0
@@ -6439,11 +6446,12 @@ async function galleryShowCurrent() {
   const prevBtn = document.getElementById('galleryNavPrev');
   const nextBtn = document.getElementById('galleryNavNext');
 
-  // Get full-size URL
+  // Get full-size URL — prefer original blob, then inline full data, then small thumb
   let url = '';
   if (item.blobKey) {
     url = await getObjectUrlForBlobKey(item.blobKey);
   }
+  if (!url && item.inlineDataUrl) url = item.inlineDataUrl;
   if (!url) url = item.previewDataUrl;
 
   if (img) {
