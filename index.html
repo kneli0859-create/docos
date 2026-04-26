@@ -214,7 +214,7 @@
       <section class="screen" id="screen-documents">
         <div class="screen-scroll">
           <div class="search-bar-wrap">
-            <input type="text" class="search-input" id="docSearch" placeholder="🔍  Търси документ, име, email, адрес..."/>
+            <input type="search" class="search-input" id="docSearch" placeholder="🔍  Търси документ, име, email, адрес..." inputmode="search" enterkeyhint="search" autocapitalize="off" autocorrect="off"/>
           </div>
           <div class="filter-row" id="docFilterRow">
             <button class="filter-chip active" data-filter="all">Всички</button>
@@ -445,7 +445,7 @@
                 <button class="cinema-url-close" id="cinemaUrlClose">✕</button>
               </div>
               <div class="cinema-url-blurb">Постави линк от YouTube, Vimeo, filmifen, filmizip, директен .mp4/.m3u8 — каквото и да е.</div>
-              <input type="url" id="cinemaUrlInput" class="cinema-url-input" placeholder="https://..." autocomplete="off"/>
+              <input type="url" id="cinemaUrlInput" class="cinema-url-input" placeholder="https://..." autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" enterkeyhint="go"/>
               <button class="cinema-url-go" id="cinemaUrlGo">▶ Пусни</button>
               <div class="cinema-url-hint">⚠️ Някои сайтове (Netflix, HBO) не позволяват вграждане заради DRM. Ако линкът не работи → ще има бутон да го отвориш в нов прозорец.</div>
               <div class="cinema-url-history" id="cinemaUrlHistory"></div>

@@ -334,6 +334,10 @@
     var m = document.createElement('div');
     m.id = 'docosFirstRun';
     m.className = 'cloud-firstrun';
+    // Click backdrop to dismiss (won't lose data — modal will reappear next session)
+    m.addEventListener('click', function (e) {
+      if (e.target === m) m.remove();
+    });
     m.innerHTML =
       '<div class="cloud-firstrun-card">' +
         '<div class="cloud-firstrun-ico">☁️</div>' +

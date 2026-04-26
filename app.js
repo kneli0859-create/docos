@@ -3350,6 +3350,7 @@ function startClock() {
 ═══════════════════════════════════════════════ */
 
 function showTab(tab) {
+  const prevTab = state.currentTab;
   state.currentTab = tab;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
@@ -3359,6 +3360,18 @@ function showTab(tab) {
 
   const btn = document.querySelector(`.dock-btn[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
+
+  // Cinema tab transitions: pause video on leave, restore animations on other tabs
+  if (prevTab === 'cinema' && tab !== 'cinema') {
+    try { document.getElementById('cinemaVideo')?.pause(); } catch (_) {}
+    cinemaSetPlayingMode?.(false);
+  } else if (tab === 'cinema') {
+    const v = document.getElementById('cinemaVideo');
+    const ifr = document.getElementById('cinemaIframe');
+    if ((v && v.src && !v.paused) || (ifr && ifr.src && ifr.src !== 'about:blank')) {
+      cinemaSetPlayingMode?.(true);
+    }
+  }
 
   // Render tab content
   switch(tab) {
@@ -7388,6 +7401,10 @@ function initCinemaControls() {
   });
   document.getElementById('cinemaUrlInput')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('cinemaUrlGo')?.click();
+  });
+  // Click backdrop (outside the card) to close
+  document.getElementById('cinemaUrlModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'cinemaUrlModal') cinemaCloseUrlModal();
   });
   document.getElementById('cinemaBarStop')?.addEventListener('click', cinemaStopUrl);
 
