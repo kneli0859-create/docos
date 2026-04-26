@@ -28,16 +28,9 @@
 }
 
 /* ── Locked iOS-style background ─────────────────────────── */
-/* Static, no animation, no movement, no heavy blur — GPU-light, rock-solid */
-html, body {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  max-width: 100vw;
-  overflow: hidden !important;
-  overscroll-behavior: none;
-  touch-action: pan-y;
-}
+/* Static gradient, no animation, no movement — GPU-light.
+   IMPORTANT: do NOT set position:fixed on html/body — it breaks iOS Safari layout
+   (cards shift, dock cuts off). Standard overflow:hidden in the main CSS is enough. */
 body {
   background: var(--pro-bg-0) !important;
 }
