@@ -754,26 +754,41 @@ body::after {
    colors actually morph (not just filter hue-rotate).
    ═══════════════════════════════════════════════════════════ */
 
-@property --pro-h {
-  syntax: '<angle>';
-  inherits: true;
-  initial-value: 42deg;
-}
-@keyframes pro-h-spin {
-  from { --pro-h: 0deg; }
-  to   { --pro-h: 360deg; }
-}
-html[data-chameleon="on"] {
-  animation: pro-h-spin 9s linear infinite;
+@property --pro-h  { syntax: '<angle>'; inherits: true; initial-value: 42deg;  }
+@property --pro-h2 { syntax: '<angle>'; inherits: true; initial-value: 200deg; }
+@property --pro-h3 { syntax: '<angle>'; inherits: true; initial-value: 320deg; }
+@property --pro-h4 { syntax: '<angle>'; inherits: true; initial-value: 80deg;  }
+@property --pro-sat { syntax: '<percentage>'; inherits: true; initial-value: 85%; }
+
+/* Three independent hue rotors at different speeds → constant cross-blending */
+@keyframes pro-h-spin  { from { --pro-h:  0deg; } to { --pro-h:  360deg; } }
+@keyframes pro-h2-spin { from { --pro-h2: 0deg; } to { --pro-h2: -360deg; } }
+@keyframes pro-h3-spin { from { --pro-h3: 0deg; } to { --pro-h3: 360deg; } }
+@keyframes pro-h4-spin { from { --pro-h4: 0deg; } to { --pro-h4: -360deg; } }
+@keyframes pro-sat-pulse {
+  0%, 100% { --pro-sat: 80%; }
+  50%      { --pro-sat: 100%; }
 }
 
-/* Body itself morphs through subtle dark tints (deep, professional) */
+html[data-chameleon="on"] {
+  animation:
+    pro-h-spin   8s  linear infinite,
+    pro-h2-spin  11s linear infinite,
+    pro-h3-spin  14s linear infinite,
+    pro-h4-spin  17s linear infinite,
+    pro-sat-pulse 6s ease-in-out infinite;
+}
+
+/* Body — multi-hue dark gradient, 4 stops from 4 different rotors */
 html[data-chameleon="on"] body {
   background:
+    radial-gradient(80% 60% at 20% 0%,   hsl(var(--pro-h),  40%, 7%) 0%, transparent 60%),
+    radial-gradient(80% 60% at 100% 30%, hsl(var(--pro-h2), 38%, 6%) 0%, transparent 60%),
+    radial-gradient(70% 60% at 50% 100%, hsl(var(--pro-h3), 35%, 5%) 0%, transparent 60%),
     linear-gradient(180deg,
-      hsl(var(--pro-h), 35%, 4%) 0%,
-      hsl(calc(var(--pro-h) + 40deg), 30%, 6%) 50%,
-      hsl(calc(var(--pro-h) - 30deg), 30%, 3%) 100%) !important;
+      hsl(var(--pro-h),  35%, 4%) 0%,
+      hsl(var(--pro-h4), 30%, 6%) 50%,
+      hsl(var(--pro-h2), 32%, 3%) 100%) !important;
   transition: none;
 }
 html[data-chameleon="on"] #app,
@@ -865,44 +880,54 @@ html[data-chameleon="on"] .dash-action-btn:nth-child(4) { animation-delay: -4.5s
 
 /* ── Strong chameleon overrides — actual gradient colors morph ── */
 
-/* Whole-page aurora background uses the animated hue var */
+/* Whole-page aurora — five color blobs from four independent rotors */
 html[data-chameleon="on"] body::before {
   background:
-    radial-gradient(70% 55% at 18% 10%, hsla(var(--pro-h), 90%, 60%, 0.32), transparent 60%),
-    radial-gradient(60% 50% at 88% 30%, hsla(calc(var(--pro-h) + 120deg), 90%, 60%, 0.25), transparent 60%),
-    radial-gradient(80% 65% at 50% 100%, hsla(calc(var(--pro-h) + 240deg), 90%, 60%, 0.25), transparent 60%) !important;
-  animation: pro-aurora 22s ease-in-out infinite alternate !important;
+    radial-gradient(55% 45% at 12% 8%,   hsla(var(--pro-h),  95%, 60%, 0.38), transparent 60%),
+    radial-gradient(50% 40% at 92% 18%,  hsla(var(--pro-h2), 95%, 60%, 0.32), transparent 60%),
+    radial-gradient(60% 50% at 50% 55%,  hsla(var(--pro-h3), 95%, 62%, 0.28), transparent 60%),
+    radial-gradient(55% 45% at 88% 88%,  hsla(var(--pro-h4), 95%, 60%, 0.30), transparent 60%),
+    radial-gradient(50% 40% at 8% 92%,   hsla(calc(var(--pro-h) + 60deg), 95%, 60%, 0.28), transparent 60%) !important;
+  animation: pro-aurora 18s ease-in-out infinite alternate !important;
   opacity: 1;
 }
 
-/* Hero card surface + gradient border morph */
+/* Hero card — three different rotors mix on the surface */
 html[data-chameleon="on"] .dash-hero {
   background:
-    radial-gradient(120% 100% at 0% 0%, hsla(var(--pro-h), 85%, 55%, 0.22), transparent 55%),
-    radial-gradient(120% 100% at 100% 100%, hsla(calc(var(--pro-h) + 180deg), 85%, 55%, 0.18), transparent 55%),
+    radial-gradient(90% 80% at 0% 0%,    hsla(var(--pro-h),  90%, 55%, 0.24), transparent 55%),
+    radial-gradient(90% 80% at 100% 0%,  hsla(var(--pro-h2), 90%, 55%, 0.22), transparent 55%),
+    radial-gradient(90% 80% at 50% 100%, hsla(var(--pro-h3), 90%, 55%, 0.20), transparent 55%),
     linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012)) !important;
-  border-color: hsla(var(--pro-h), 70%, 55%, 0.28) !important;
+  border-color: hsla(var(--pro-h2), 75%, 55%, 0.32) !important;
 }
 html[data-chameleon="on"] .dash-hero::before {
-  background: linear-gradient(135deg,
-    hsla(var(--pro-h), 90%, 60%, 0.6),
-    transparent 35%, transparent 65%,
-    hsla(calc(var(--pro-h) + 180deg), 90%, 60%, 0.45)) !important;
-  opacity: 0.85;
-  animation: none;
+  background: conic-gradient(from 0deg,
+    hsla(var(--pro-h),  95%, 60%, 0.55),
+    hsla(var(--pro-h2), 95%, 60%, 0.55),
+    hsla(var(--pro-h3), 95%, 60%, 0.55),
+    hsla(var(--pro-h4), 95%, 60%, 0.55),
+    hsla(var(--pro-h),  95%, 60%, 0.55)) !important;
+  opacity: 0.7;
+  animation: pro-spin 12s linear infinite;
 }
 
-/* CLOCK — full color morph (gradient text + glow) */
+/* CLOCK — 4-stop multi-hue gradient + dual glow */
 html[data-chameleon="on"] .dash-hero-time {
   background: linear-gradient(180deg,
     #ffffff 0%,
-    hsl(var(--pro-h), 95%, 72%) 55%,
-    hsl(var(--pro-h), 85%, 50%) 100%) !important;
+    hsl(var(--pro-h),  var(--pro-sat), 75%) 35%,
+    hsl(var(--pro-h2), var(--pro-sat), 60%) 70%,
+    hsl(var(--pro-h3), var(--pro-sat), 45%) 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
-  text-shadow: 0 8px 40px hsla(var(--pro-h), 95%, 60%, 0.5) !important;
-  filter: drop-shadow(0 0 22px hsla(var(--pro-h), 95%, 60%, 0.6)) !important;
+  text-shadow:
+    0 0 28px hsla(var(--pro-h),  95%, 60%, 0.55),
+    0 8px 40px hsla(var(--pro-h2), 95%, 60%, 0.45) !important;
+  filter:
+    drop-shadow(0 0 22px hsla(var(--pro-h2), 95%, 60%, 0.55))
+    drop-shadow(0 0 12px hsla(var(--pro-h3), 95%, 60%, 0.35)) !important;
   animation: none !important;
 }
 html[data-chameleon="on"] .dash-hero-storage-dot {
@@ -927,9 +952,9 @@ html[data-chameleon="on"] .app-version {
   animation: none !important;
 }
 
-/* Stat cards — number gradient + border tint */
+/* Stat cards — number gradient + border tint, each card different rotor */
 html[data-chameleon="on"] .dash-stat-num {
-  background: linear-gradient(180deg, #ffffff, hsl(var(--pro-h), 90%, 65%)) !important;
+  background: linear-gradient(180deg, #ffffff, hsl(var(--pro-h), var(--pro-sat), 65%)) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
@@ -937,19 +962,49 @@ html[data-chameleon="on"] .dash-stat-num {
 }
 html[data-chameleon="on"] .dash-stat-card {
   background: linear-gradient(160deg,
-    hsla(var(--pro-h), 70%, 55%, 0.10),
-    hsla(calc(var(--pro-h) + 60deg), 70%, 55%, 0.04)) !important;
-  border-color: hsla(var(--pro-h), 70%, 55%, 0.25) !important;
+    hsla(var(--pro-h),  75%, 55%, 0.13),
+    hsla(var(--pro-h2), 75%, 55%, 0.05)) !important;
+  border-color: hsla(var(--pro-h), 75%, 55%, 0.28) !important;
   animation: none !important;
 }
+html[data-chameleon="on"] .dash-stat-card:nth-child(2) .dash-stat-num {
+  background: linear-gradient(180deg, #ffffff, hsl(var(--pro-h2), var(--pro-sat), 65%)) !important;
+  -webkit-background-clip: text !important; background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+html[data-chameleon="on"] .dash-stat-card:nth-child(2) {
+  background: linear-gradient(160deg, hsla(var(--pro-h2), 75%, 55%, 0.13), hsla(var(--pro-h3), 75%, 55%, 0.05)) !important;
+  border-color: hsla(var(--pro-h2), 75%, 55%, 0.28) !important;
+}
+html[data-chameleon="on"] .dash-stat-card:nth-child(3) .dash-stat-num {
+  background: linear-gradient(180deg, #ffffff, hsl(var(--pro-h3), var(--pro-sat), 65%)) !important;
+  -webkit-background-clip: text !important; background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+html[data-chameleon="on"] .dash-stat-card:nth-child(3) {
+  background: linear-gradient(160deg, hsla(var(--pro-h3), 75%, 55%, 0.13), hsla(var(--pro-h4), 75%, 55%, 0.05)) !important;
+  border-color: hsla(var(--pro-h3), 75%, 55%, 0.28) !important;
+}
+html[data-chameleon="on"] .dash-stat-card:nth-child(4) .dash-stat-num {
+  background: linear-gradient(180deg, #ffffff, hsl(var(--pro-h4), var(--pro-sat), 65%)) !important;
+  -webkit-background-clip: text !important; background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+html[data-chameleon="on"] .dash-stat-card:nth-child(4) {
+  background: linear-gradient(160deg, hsla(var(--pro-h4), 75%, 55%, 0.13), hsla(var(--pro-h), 75%, 55%, 0.05)) !important;
+  border-color: hsla(var(--pro-h4), 75%, 55%, 0.28) !important;
+}
 
-/* Storage progress bar — full HSL morph */
+/* Storage progress bar — 3-stop rainbow, both ends morph independently */
 html[data-chameleon="on"] .dash-storage-bar-fill,
 html[data-chameleon="on"] .dash-storage-micro-fill {
   background: linear-gradient(90deg,
-    hsl(var(--pro-h), 90%, 55%),
-    hsl(calc(var(--pro-h) + 40deg), 95%, 65%)) !important;
-  box-shadow: 0 0 14px hsla(var(--pro-h), 95%, 60%, 0.7) !important;
+    hsl(var(--pro-h),  var(--pro-sat), 55%),
+    hsl(var(--pro-h2), var(--pro-sat), 65%),
+    hsl(var(--pro-h3), var(--pro-sat), 60%)) !important;
+  box-shadow:
+    0 0 14px hsla(var(--pro-h),  95%, 60%, 0.65),
+    0 0 24px hsla(var(--pro-h2), 95%, 60%, 0.35) !important;
   animation: none !important;
 }
 html[data-chameleon="on"] .dash-storage-health {
@@ -971,22 +1026,41 @@ html[data-chameleon="on"] .settings-group {
   animation: none !important;
 }
 
-/* Quick action buttons */
+/* Quick action buttons — each one a different rotor */
 html[data-chameleon="on"] .dash-action-btn {
   background: linear-gradient(160deg,
-    hsla(var(--pro-h), 70%, 55%, 0.14),
-    hsla(calc(var(--pro-h) + 60deg), 70%, 55%, 0.04)) !important;
-  border-color: hsla(var(--pro-h), 70%, 55%, 0.28) !important;
+    hsla(var(--pro-h),  75%, 55%, 0.16),
+    hsla(var(--pro-h2), 75%, 55%, 0.04)) !important;
+  border-color: hsla(var(--pro-h), 75%, 55%, 0.30) !important;
   animation: none !important;
 }
 html[data-chameleon="on"] .dash-action-btn::before {
-  background: radial-gradient(80% 60% at 50% 0%,
-    hsla(var(--pro-h), 90%, 60%, 0.28), transparent 70%) !important;
+  background: radial-gradient(80% 60% at 50% 0%, hsla(var(--pro-h), 95%, 60%, 0.32), transparent 70%) !important;
 }
 html[data-chameleon="on"] .dash-action-ico {
-  filter: drop-shadow(0 4px 14px hsla(var(--pro-h), 95%, 60%, 0.7)) !important;
+  filter: drop-shadow(0 4px 14px hsla(var(--pro-h), 95%, 60%, 0.75)) !important;
   animation: none !important;
 }
+html[data-chameleon="on"] .dash-action-btn:nth-child(2) {
+  background: linear-gradient(160deg, hsla(var(--pro-h2), 75%, 55%, 0.16), hsla(var(--pro-h3), 75%, 55%, 0.04)) !important;
+  border-color: hsla(var(--pro-h2), 75%, 55%, 0.30) !important;
+}
+html[data-chameleon="on"] .dash-action-btn:nth-child(2)::before { background: radial-gradient(80% 60% at 50% 0%, hsla(var(--pro-h2), 95%, 60%, 0.32), transparent 70%) !important; }
+html[data-chameleon="on"] .dash-action-btn:nth-child(2) .dash-action-ico { filter: drop-shadow(0 4px 14px hsla(var(--pro-h2), 95%, 60%, 0.75)) !important; }
+
+html[data-chameleon="on"] .dash-action-btn:nth-child(3) {
+  background: linear-gradient(160deg, hsla(var(--pro-h3), 75%, 55%, 0.16), hsla(var(--pro-h4), 75%, 55%, 0.04)) !important;
+  border-color: hsla(var(--pro-h3), 75%, 55%, 0.30) !important;
+}
+html[data-chameleon="on"] .dash-action-btn:nth-child(3)::before { background: radial-gradient(80% 60% at 50% 0%, hsla(var(--pro-h3), 95%, 60%, 0.32), transparent 70%) !important; }
+html[data-chameleon="on"] .dash-action-btn:nth-child(3) .dash-action-ico { filter: drop-shadow(0 4px 14px hsla(var(--pro-h3), 95%, 60%, 0.75)) !important; }
+
+html[data-chameleon="on"] .dash-action-btn:nth-child(4) {
+  background: linear-gradient(160deg, hsla(var(--pro-h4), 75%, 55%, 0.16), hsla(var(--pro-h), 75%, 55%, 0.04)) !important;
+  border-color: hsla(var(--pro-h4), 75%, 55%, 0.30) !important;
+}
+html[data-chameleon="on"] .dash-action-btn:nth-child(4)::before { background: radial-gradient(80% 60% at 50% 0%, hsla(var(--pro-h4), 95%, 60%, 0.32), transparent 70%) !important; }
+html[data-chameleon="on"] .dash-action-btn:nth-child(4) .dash-action-ico { filter: drop-shadow(0 4px 14px hsla(var(--pro-h4), 95%, 60%, 0.75)) !important; }
 
 /* Section header gold bar + link buttons + chips */
 html[data-chameleon="on"] .section-header::before {
@@ -1042,41 +1116,45 @@ html[data-chameleon="on"] .sheet-title {
   animation: none !important;
 }
 
-/* Bottom dock — active tab + center disc */
+/* Bottom dock — active tab + center disc, multi-rotor mix */
 html[data-chameleon="on"] .bottom-dock {
-  border-top-color: hsla(var(--pro-h), 70%, 55%, 0.20) !important;
+  border-top-color: hsla(var(--pro-h2), 75%, 55%, 0.22) !important;
 }
 html[data-chameleon="on"] .dock-btn.active {
-  color: hsl(var(--pro-h), 95%, 75%) !important;
+  color: hsl(var(--pro-h), var(--pro-sat), 75%) !important;
   animation: none !important;
 }
 html[data-chameleon="on"] .dock-btn.active::before {
   background: linear-gradient(90deg,
-    hsl(var(--pro-h), 95%, 70%),
-    hsl(calc(var(--pro-h) - 30deg), 85%, 50%)) !important;
-  box-shadow: 0 0 12px hsl(var(--pro-h), 95%, 60%) !important;
+    hsl(var(--pro-h),  var(--pro-sat), 70%),
+    hsl(var(--pro-h2), var(--pro-sat), 60%),
+    hsl(var(--pro-h3), var(--pro-sat), 50%)) !important;
+  box-shadow: 0 0 14px hsl(var(--pro-h), 95%, 60%), 0 0 22px hsla(var(--pro-h2), 95%, 60%, 0.55) !important;
   animation: none !important;
 }
 html[data-chameleon="on"] .dock-btn.active .dock-icon {
-  filter: drop-shadow(0 0 14px hsla(var(--pro-h), 95%, 60%, 0.7)) !important;
+  filter:
+    drop-shadow(0 0 14px hsla(var(--pro-h),  95%, 60%, 0.7))
+    drop-shadow(0 0 8px  hsla(var(--pro-h2), 95%, 60%, 0.45)) !important;
 }
 html[data-chameleon="on"] .dock-center .dock-icon {
   background: linear-gradient(135deg,
-    hsl(var(--pro-h), 95%, 70%),
-    hsl(calc(var(--pro-h) - 30deg), 85%, 50%)) !important;
+    hsl(var(--pro-h),  var(--pro-sat), 70%),
+    hsl(var(--pro-h2), var(--pro-sat), 55%)) !important;
   box-shadow:
-    0 14px 30px -8px hsla(var(--pro-h), 95%, 55%, 0.75),
+    0 14px 30px -8px hsla(var(--pro-h),  95%, 55%, 0.7),
+    0 6px 22px -4px  hsla(var(--pro-h2), 95%, 55%, 0.55),
     inset 0 1px 0 rgba(255,255,255,0.55),
     inset 0 -8px 18px rgba(0,0,0,0.18) !important;
   animation: none !important;
 }
 html[data-chameleon="on"] .dock-center .dock-icon::before {
   background: conic-gradient(from 0deg,
-    hsl(var(--pro-h), 95%, 60%),
-    hsl(calc(var(--pro-h) + 90deg), 95%, 60%),
-    hsl(calc(var(--pro-h) + 180deg), 95%, 60%),
-    hsl(calc(var(--pro-h) + 270deg), 95%, 60%),
-    hsl(var(--pro-h), 95%, 60%)) !important;
+    hsl(var(--pro-h),  95%, 60%),
+    hsl(var(--pro-h2), 95%, 60%),
+    hsl(var(--pro-h3), 95%, 60%),
+    hsl(var(--pro-h4), 95%, 60%),
+    hsl(var(--pro-h),  95%, 60%)) !important;
 }
 
 /* PIN screen */
