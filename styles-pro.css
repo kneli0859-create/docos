@@ -767,6 +767,21 @@ html[data-chameleon="on"] {
   animation: pro-h-spin 9s linear infinite;
 }
 
+/* Body itself morphs through subtle dark tints (deep, professional) */
+html[data-chameleon="on"] body {
+  background:
+    linear-gradient(180deg,
+      hsl(var(--pro-h), 35%, 4%) 0%,
+      hsl(calc(var(--pro-h) + 40deg), 30%, 6%) 50%,
+      hsl(calc(var(--pro-h) - 30deg), 30%, 3%) 100%) !important;
+  transition: none;
+}
+html[data-chameleon="on"] #app,
+html[data-chameleon="on"] .screen,
+html[data-chameleon="on"] .screen-scroll {
+  background: transparent !important;
+}
+
 @keyframes pro-cham-hue {
   0%   { filter: hue-rotate(0deg)   saturate(1.1); }
   100% { filter: hue-rotate(360deg) saturate(1.1); }
