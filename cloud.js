@@ -263,12 +263,24 @@
       email: email,
       options: { emailRedirectTo: location.origin + location.pathname }
     });
-    if (ret.error) {
-      toast('Грешка: ' + ret.error.message, 'err');
-      return false;
-    }
+    if (ret.error) { toast('Грешка: ' + ret.error.message, 'err'); return false; }
     toast('📧 Провери имейла за линка', 'ok');
     return true;
+  }
+  async function passwordAuth(email, password) {
+    await initClient();
+    var r = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (!r.error) { toast('☁️ Влязохте', 'ok'); return true; }
+    var msg = (r.error && r.error.message) || '';
+    if (/invalid login|invalid credentials/i.test(msg)) {
+      var u = await sb.auth.signUp({ email: email, password: password });
+      if (u.error) { toast('Грешка: ' + u.error.message, 'err'); return false; }
+      if (u.data && u.data.session) { toast('☁️ Регистриран и влязохте', 'ok'); return true; }
+      toast('📧 Провери имейла за потвърждение', 'warn');
+      return false;
+    }
+    toast('Грешка: ' + msg, 'err');
+    return false;
   }
   async function signOut() {
     if (!sb) return;
@@ -332,21 +344,33 @@
     if (!session) {
       body.innerHTML = `
         <div class="cloud-section">
-          <div class="cloud-blurb">Архивирай документи, термини и файлове в облака. Достъп от всякъде с имейла ти. Без парола — magic link.</div>
+          <div class="cloud-blurb">Архивирай документи, термини и файлове в облака. Достъп от всякъде. Препоръчвам имейл + парола (работи веднага).</div>
         </div>
         <div class="cloud-section">
           <label class="cloud-label">Имейл</label>
           <input type="email" inputmode="email" autocomplete="email" id="docosCloudEmail" class="cloud-input" placeholder="ti@email.com"/>
-          <button class="cloud-btn cloud-btn--primary" id="docosCloudLogin">📧 Изпрати magic link</button>
+          <label class="cloud-label">Парола (нова или съществуваща)</label>
+          <input type="password" autocomplete="current-password" id="docosCloudPass" class="cloud-input" placeholder="мин. 6 символа"/>
+          <button class="cloud-btn cloud-btn--primary" id="docosCloudPwLogin">🔑 Влез / Регистрирай</button>
+          <button class="cloud-btn" id="docosCloudLogin" style="margin-top:8px">📧 Magic link (без парола)</button>
         </div>
         <div class="cloud-foot">Защитено с RLS · файловете ти са видими само за теб</div>
       `;
+      $('docosCloudPwLogin').addEventListener('click', async function () {
+        var em = ($('docosCloudEmail').value || '').trim();
+        var pw = ($('docosCloudPass').value || '');
+        if (!em || !/.+@.+\..+/.test(em)) { toast('Невалиден имейл', 'warn'); return; }
+        if (!pw || pw.length < 6) { toast('Парола мин. 6 символа', 'warn'); return; }
+        this.disabled = true; this.textContent = 'Влизам...';
+        await passwordAuth(em, pw);
+        this.disabled = false; this.textContent = '🔑 Влез / Регистрирай';
+      });
       $('docosCloudLogin').addEventListener('click', async function () {
         var v = ($('docosCloudEmail').value || '').trim();
         if (!v || !/.+@.+\..+/.test(v)) { toast('Невалиден имейл', 'warn'); return; }
         this.disabled = true; this.textContent = 'Изпращам...';
         await sendMagicLink(v);
-        this.disabled = false; this.textContent = '📧 Изпрати magic link';
+        this.disabled = false; this.textContent = '📧 Magic link (без парола)';
       });
       return;
     }
