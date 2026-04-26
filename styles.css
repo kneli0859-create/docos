@@ -1084,6 +1084,37 @@ a { color: var(--accent); }
 .link-btn { font-size: 0.76rem; color: var(--accent); font-weight: 700; letter-spacing: 0.2px; }
 .link-btn:active { opacity: 0.7; }
 
+/* Hard refresh button — prominent, clear, single-tap */
+.hard-refresh-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(212,168,67,0.16), rgba(212,168,67,0.06));
+  border: 1px solid rgba(212,168,67,0.32);
+  border-radius: 14px;
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+.hard-refresh-btn:active { transform: scale(0.97); background: linear-gradient(135deg, rgba(212,168,67,0.26), rgba(212,168,67,0.12)); }
+.hard-refresh-btn .link-btn-sub {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text2);
+  letter-spacing: 0;
+}
+.hard-refresh-btn[disabled] { opacity: 0.6; cursor: wait; }
+.hard-refresh-btn.spinning span:first-child::after {
+  content: ' ⏳';
+}
+
 /* ---------- Deadlines ---------- */
 .deadlines-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.2rem; }
 .deadline-item {

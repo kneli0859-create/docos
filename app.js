@@ -7456,6 +7456,40 @@ function initCinemaControls() {
   });
   document.getElementById('cinemaBarStop')?.addEventListener('click', cinemaStopUrl);
 
+  // Hard refresh — clears all caches + service worker, reloads with cache-bust
+  document.getElementById('hardRefreshBtn')?.addEventListener('click', async function () {
+    if (this.disabled) return;
+    if (!confirm('Изтрива целия кеш и зарежда най-новата версия. Локалните ти данни (документи, папки, термини) НЕ се пипат. Продължи?')) return;
+    this.disabled = true;
+    this.classList.add('spinning');
+    const sub = this.querySelector('.link-btn-sub');
+    if (sub) sub.textContent = 'Изчиствам кеша...';
+    showToast('🔄 Хард рефреш...');
+    try {
+      // 1) Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister().catch(() => false)));
+      }
+      // 2) Delete every cache (shell + runtime)
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k).catch(() => false)));
+      }
+      if (sub) sub.textContent = 'Зареждам новата версия...';
+      // 3) Force reload with cache-busting query so even HTTP cache doesn't lie
+      const url = new URL(location.href);
+      url.searchParams.set('_cb', Date.now().toString());
+      location.replace(url.toString());
+    } catch (e) {
+      console.error('hard refresh failed', e);
+      showToast('Грешка: ' + (e.message || e));
+      this.disabled = false;
+      this.classList.remove('spinning');
+      if (sub) sub.textContent = 'Изчисти кеша и зареди най-новата версия';
+    }
+  });
+
   document.getElementById('cinemaFileInput')?.addEventListener('change', (e) => {
     if (e.target.files?.length) cinemaAddFiles(e.target.files);
     e.target.value = '';
