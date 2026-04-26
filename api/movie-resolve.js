@@ -87,13 +87,51 @@ function extractTitleAndYear(html) {
   return { title, year };
 }
 
-async function resolveFromUrl(rawUrl) {
-  const r = await fetch(rawUrl, { headers: { 'User-Agent': UA, 'Accept': 'text/html,*/*' } });
-  if (!r.ok) throw new Error(`Source page returned ${r.status}`);
-  const html = await r.text();
-  const { title, year } = extractTitleAndYear(html);
-  if (!title) throw new Error('No title found on the page');
+function extractFromUrlSlug(rawUrl) {
+  // /filmi/20735-apex.html → "apex"
+  // /movies/12345-the-matrix-1999.html → "the matrix" + year 1999
+  // /film/inception → "inception"
+  let url;
+  try { url = new URL(rawUrl); } catch (_) { return { title: '', year: '' }; }
+  const seg = url.pathname.split('/').filter(Boolean).pop() || '';
+  let slug = seg.replace(/\.[a-z0-9]{1,5}$/i, ''); // strip .html .php
+  slug = slug.replace(/^[0-9]+-/, ''); // strip leading id-
+  let year = '';
+  const ym = slug.match(/[-_](\d{4})(?:[-_]|$)/);
+  if (ym) { year = ym[1]; slug = slug.replace(ym[0], '-'); }
+  const title = slug.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
   return { title, year };
+}
+
+async function resolveFromUrl(rawUrl) {
+  // 1) Always derive title from URL slug — fast and works even when source blocks our IP
+  const slug = extractFromUrlSlug(rawUrl);
+
+  // 2) Try real scrape for richer metadata; ignore failures (Cloudflare on Vercel often 403s)
+  try {
+    const r = await fetch(rawUrl, {
+      headers: {
+        'User-Agent': UA,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'bg,en-US;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
+      },
+      redirect: 'follow'
+    });
+    if (r.ok) {
+      const html = await r.text();
+      const meta = extractTitleAndYear(html);
+      if (meta.title) return { title: meta.title, year: meta.year || slug.year };
+    }
+  } catch (_) {}
+
+  if (slug.title) return slug;
+  throw new Error('Не успях да извлека заглавие от линка');
 }
 
 module.exports = async (req, res) => {
