@@ -1,5 +1,5 @@
-const DOCOS_SHELL_CACHE = 'docos-shell-v19';
-const DOCOS_RUNTIME_CACHE = 'docos-runtime-v7';
+const DOCOS_SHELL_CACHE = 'docos-shell-v20';
+const DOCOS_RUNTIME_CACHE = 'docos-runtime-v8';
 const DOCOS_CACHE_PREFIXES = ['docos-shell-', 'docos-runtime-'];
 
 const DOCOS_ASSETS = [
@@ -8,6 +8,7 @@ const DOCOS_ASSETS = [
   './styles.css',
   './styles-pro.css',
   './pro.js',
+  './cloud.js',
   './app.js',
   './manifest.json',
   './icons/icon-192.png',
@@ -37,7 +38,8 @@ const DOCOS_RUNTIME_URLS = [
   'https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js',
   'https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat.js',
   'https://cdn.jsdelivr.net/npm/body-scroll-lock@4.0.0-beta.0/lib/bodyScrollLock.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs'
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'
 ];
 
 const DOCOS_RUNTIME_SET = new Set(DOCOS_RUNTIME_URLS);
