@@ -6648,6 +6648,9 @@ function cinemaPlayIndex(idx) {
   if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
   const viewport = document.getElementById('cinemaViewport');
   viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
+  cinemaHideIframeLoader?.();
+  cinemaHideBar?.();
+  cinemaSetPlayingMode?.(true);
   video.style.display = '';
   const controls = document.getElementById('cinemaControls');
   if (controls) controls.style.display = '';
@@ -6804,6 +6807,58 @@ function cinemaLoadHlsLib() {
   });
 }
 
+function cinemaSetPlayingMode(on) {
+  if (on) document.documentElement.dataset.cinemaPlaying = '1';
+  else delete document.documentElement.dataset.cinemaPlaying;
+}
+
+function cinemaShowBar(rawUrl) {
+  const bar = document.getElementById('cinemaBar');
+  const host = document.getElementById('cinemaBarHost');
+  const open = document.getElementById('cinemaBarOpen');
+  if (!bar) return;
+  bar.classList.add('show');
+  try { host.textContent = new URL(rawUrl).hostname.replace(/^www\./, ''); }
+  catch (_) { host.textContent = rawUrl; }
+  if (open) open.href = rawUrl;
+}
+function cinemaHideBar() {
+  document.getElementById('cinemaBar')?.classList.remove('show');
+}
+
+function cinemaShowIframeLoader(label) {
+  const l = document.getElementById('cinemaIframeLoader');
+  const lbl = document.getElementById('cinemaIframeLoaderLbl');
+  if (lbl && label) lbl.textContent = label;
+  l?.classList.remove('hide');
+}
+function cinemaHideIframeLoader() {
+  document.getElementById('cinemaIframeLoader')?.classList.add('hide');
+}
+
+function cinemaStopUrl() {
+  const video = document.getElementById('cinemaVideo');
+  const iframe = document.getElementById('cinemaIframe');
+  const controls = document.getElementById('cinemaControls');
+  const viewport = document.getElementById('cinemaViewport');
+  const empty = document.getElementById('cinemaEmpty');
+  const playerWrap = document.getElementById('cinemaPlayerWrap');
+
+  cinemaDestroyHls();
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); video.style.display = ''; }
+  if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
+  if (controls) controls.style.display = '';
+  viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
+  cinemaHideIframeLoader();
+  cinemaHideBar();
+  cinemaSetPlayingMode(false);
+
+  if (cinemaState.currentIndex < 0) {
+    if (playerWrap) playerWrap.style.display = 'none';
+    if (empty) empty.style.display = '';
+  }
+}
+
 async function cinemaPlayUrl(rawUrl) {
   const { mode, url } = cinemaTransformUrl(rawUrl);
   cinemaPushUrlHistory(rawUrl);
@@ -6817,16 +6872,18 @@ async function cinemaPlayUrl(rawUrl) {
   const overlay = document.getElementById('cinemaOverlay');
   const viewport = document.getElementById('cinemaViewport');
 
-  // Cleanup previous fallback
   viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
 
   if (playerWrap) playerWrap.style.display = '';
   if (empty) empty.style.display = 'none';
 
   cinemaDestroyHls();
+  cinemaSetPlayingMode(true);
 
   if (mode === 'video') {
-    if (iframe) iframe.style.display = 'none';
+    cinemaHideBar();
+    cinemaHideIframeLoader();
+    if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
     if (video) {
       video.style.display = '';
       video.crossOrigin = 'anonymous';
@@ -6841,12 +6898,13 @@ async function cinemaPlayUrl(rawUrl) {
   }
 
   if (mode === 'hls') {
-    if (iframe) iframe.style.display = 'none';
+    cinemaHideBar();
+    cinemaHideIframeLoader();
+    if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
     if (video) video.style.display = '';
     if (controls) controls.style.display = '';
     if (overlay) overlay.classList.add('hidden');
 
-    // Native HLS (Safari, iOS)
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url;
       video.load();
@@ -6854,7 +6912,6 @@ async function cinemaPlayUrl(rawUrl) {
       showToast('▶ HLS поток...');
       return;
     }
-    // hls.js for everyone else
     try {
       const Hls = await cinemaLoadHlsLib();
       if (Hls.isSupported()) {
@@ -6866,10 +6923,8 @@ async function cinemaPlayUrl(rawUrl) {
           if (data.fatal) showToast('HLS грешка: ' + (data.details || 'unknown'));
         });
         showToast('▶ HLS поток...');
-      } else { showToast('HLS не се поддържа в този браузър'); }
-    } catch (e) {
-      showToast('hls.js не зареди: ' + e.message);
-    }
+      } else { showToast('HLS не се поддържа'); }
+    } catch (e) { showToast('hls.js не зареди'); }
     return;
   }
 
@@ -6877,23 +6932,33 @@ async function cinemaPlayUrl(rawUrl) {
   if (video) { video.pause(); video.removeAttribute('src'); video.load(); video.style.display = 'none'; }
   if (controls) controls.style.display = 'none';
   if (overlay) overlay.classList.add('hidden');
-  if (iframe) {
-    iframe.style.display = '';
-    iframe.src = 'about:blank';
+  if (!iframe) return;
 
-    // X-Frame-Options check via load timing
-    let loaded = false;
-    const onLoad = () => { loaded = true; };
-    iframe.addEventListener('load', onLoad, { once: true });
-    iframe.src = url;
+  cinemaShowBar(rawUrl);
+  cinemaShowIframeLoader('Зареждам ' + (new URL(url).hostname.replace(/^www\./, '')) + '...');
 
-    setTimeout(() => {
-      iframe.removeEventListener('load', onLoad);
-      if (!loaded) cinemaShowIframeFallback(rawUrl);
-    }, 6000);
+  iframe.style.display = '';
+  iframe.src = 'about:blank';
 
-    showToast('▶ Зареждам ' + (new URL(url).hostname.replace(/^www\./, '')));
-  }
+  let didLoad = false;
+  let didFail = false;
+  const onLoad = () => { didLoad = true; cinemaHideIframeLoader(); };
+  const onError = () => { didFail = true; cinemaHideIframeLoader(); cinemaShowIframeFallback(rawUrl); };
+  iframe.addEventListener('load', onLoad, { once: true });
+  iframe.addEventListener('error', onError, { once: true });
+
+  // Forced rAF before src assign so layout settles
+  requestAnimationFrame(() => { iframe.src = url; });
+
+  // Watchdog: if still no load after 8s, mark as blocked.
+  setTimeout(() => {
+    iframe.removeEventListener('load', onLoad);
+    iframe.removeEventListener('error', onError);
+    if (!didLoad && !didFail) {
+      cinemaHideIframeLoader();
+      cinemaShowIframeFallback(rawUrl);
+    }
+  }, 8000);
 }
 
 function cinemaShowIframeFallback(originalUrl) {
@@ -6906,12 +6971,12 @@ function cinemaShowIframeFallback(originalUrl) {
   fb.className = 'cinema-iframe-fallback';
   fb.innerHTML = `
     <div class="ico">🚫</div>
-    <div class="title">Сайтът блокира вграждане</div>
-    <div class="sub">Този източник не позволява да се пуска вътре в DocOS заради DRM или security. Отвори го в нов прозорец и гледай там.</div>
+    <div class="title">Сайтът не позволява вграждане</div>
+    <div class="sub">Този източник блокира пускането вътре в DocOS (X-Frame-Options или DRM). Отвори го в нов прозорец и гледай там.</div>
     <a class="open-btn" href="${escHtml(originalUrl)}" target="_blank" rel="noopener noreferrer">↗ Отвори в нов прозорец</a>
   `;
   viewport.appendChild(fb);
-  if (iframe) iframe.style.display = 'none';
+  if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
 }
 
 function cinemaRemoveFromPlaylist(idx) {
@@ -7180,6 +7245,7 @@ function initCinemaControls() {
   document.getElementById('cinemaUrlInput')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('cinemaUrlGo')?.click();
   });
+  document.getElementById('cinemaBarStop')?.addEventListener('click', cinemaStopUrl);
 
   document.getElementById('cinemaFileInput')?.addEventListener('change', (e) => {
     if (e.target.files?.length) cinemaAddFiles(e.target.files);

@@ -3142,7 +3142,78 @@ body.docos-sheet-open {
   background: #000;
   overflow: hidden;
   touch-action: none;
+  contain: layout style paint;
+  isolation: isolate;
+  transform: translateZ(0);
 }
+
+/* Kill all heavy animations/filters while a video or iframe is playing.
+   Chameleon hue-rotate + iframe video = GPU thrashing → freeze. */
+html[data-cinema-playing="1"] body,
+html[data-cinema-playing="1"] #app,
+html[data-cinema-playing="1"] .screen,
+html[data-cinema-playing="1"] .screen-scroll,
+html[data-cinema-playing="1"] body::before,
+html[data-cinema-playing="1"] body::after {
+  filter: none !important;
+  animation: none !important;
+}
+html[data-cinema-playing="1"] *,
+html[data-cinema-playing="1"] *::before,
+html[data-cinema-playing="1"] *::after {
+  animation-play-state: paused !important;
+}
+html[data-cinema-playing="1"] .cinema-video,
+html[data-cinema-playing="1"] .cinema-iframe,
+html[data-cinema-playing="1"] .cinema-viewport,
+html[data-cinema-playing="1"] .cinema-controls,
+html[data-cinema-playing="1"] .cinema-bar {
+  animation-play-state: running !important;
+}
+
+/* Iframe top bar: always-visible fallback controls */
+.cinema-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.85), rgba(0,0,0,0.6));
+  border-bottom: 1px solid rgba(212,168,67,0.18);
+}
+.cinema-bar.show { display: flex; }
+.cinema-bar-host {
+  flex: 1; min-width: 0;
+  font-size: 12px; opacity: 0.85;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cinema-bar-btn {
+  background: rgba(212,168,67,0.18);
+  border: 1px solid rgba(212,168,67,0.35);
+  color: #fff;
+  padding: 6px 10px; border-radius: 8px;
+  font-size: 12px; cursor: pointer;
+  text-decoration: none;
+}
+.cinema-bar-btn.danger { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.35); }
+.cinema-bar-btn:active { transform: scale(0.95); }
+
+/* Loading spinner over iframe */
+.cinema-iframe-loader {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; pointer-events: none; z-index: 5;
+  background: rgba(0,0,0,0.55);
+}
+.cinema-iframe-loader.hide { display: none; }
+.cinema-iframe-loader .spin {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(212,168,67,0.25);
+  border-top-color: #d4a843;
+  border-radius: 50%;
+  animation: cinemaSpin 0.9s linear infinite;
+}
+.cinema-iframe-loader .lbl { font-size: 13px; opacity: 0.85; }
+@keyframes cinemaSpin { to { transform: rotate(360deg); } }
 .cinema-video {
   width: 100%;
   height: 100%;

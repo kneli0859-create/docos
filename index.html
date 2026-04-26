@@ -371,9 +371,18 @@
 
           <!-- Cinema Player Area -->
           <div class="cinema-player-wrap card-premium" id="cinemaPlayerWrap">
+            <div class="cinema-bar" id="cinemaBar">
+              <span class="cinema-bar-host" id="cinemaBarHost">—</span>
+              <a class="cinema-bar-btn" id="cinemaBarOpen" target="_blank" rel="noopener noreferrer" href="#">↗ Нов прозорец</a>
+              <button class="cinema-bar-btn danger" id="cinemaBarStop">✕ Спри</button>
+            </div>
             <div class="cinema-viewport" id="cinemaViewport">
               <video class="cinema-video" id="cinemaVideo" playsinline preload="metadata"></video>
               <iframe class="cinema-iframe" id="cinemaIframe" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" referrerpolicy="no-referrer-when-downgrade" allowfullscreen style="display:none"></iframe>
+              <div class="cinema-iframe-loader hide" id="cinemaIframeLoader">
+                <div class="spin"></div>
+                <div class="lbl" id="cinemaIframeLoaderLbl">Зареждам...</div>
+              </div>
               <track kind="subtitles" id="cinemaSubTrack" src="" srclang="bg" label="Български" default/>
               <div class="cinema-overlay" id="cinemaOverlay">
                 <button class="cinema-big-play" id="cinemaBigPlay">▶</button>
