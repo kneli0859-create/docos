@@ -1,4 +1,4 @@
-const DOCOS_SHELL_CACHE = 'docos-shell-v14';
+const DOCOS_SHELL_CACHE = 'docos-shell-v15';
 const DOCOS_RUNTIME_CACHE = 'docos-runtime-v7';
 const DOCOS_CACHE_PREFIXES = ['docos-shell-', 'docos-runtime-'];
 
@@ -6,6 +6,7 @@ const DOCOS_ASSETS = [
   './',
   './index.html',
   './styles.css',
+  './styles-pro.css',
   './app.js',
   './manifest.json',
   './icons/icon-192.png',
