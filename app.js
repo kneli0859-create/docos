@@ -6758,8 +6758,15 @@ function cinemaRenderUrlHistory() {
   });
 }
 
+// Movie aggregator hosts that block embedding — we'll resolve to vidsrc embeds via /api/movie-resolve
+const CINEMA_AGGREGATORS = [
+  'filmizip.com', 'filmifen.eu', 'filmifen.com', 'kinozona.eu', 'gledai.bg',
+  'kinotv.eu', 'gledaitv.bg', 'kinoteka.bg', 'rezka.ag', 'hdrezka.ag',
+  'kinopub.me', 'flixhq.to', 'fmovies.to', 'lookmovie.io', 'soap2day.to'
+];
+
 function cinemaTransformUrl(raw) {
-  // Returns { mode: 'video'|'iframe'|'hls', url: string }
+  // Returns { mode: 'video'|'iframe'|'hls'|'resolve', url, imdbId? }
   let url;
   try { url = new URL(raw); } catch (_) { return { mode: 'iframe', url: raw }; }
   const host = url.hostname.replace(/^www\./, '').toLowerCase();
@@ -6784,8 +6791,28 @@ function cinemaTransformUrl(raw) {
   if (CINEMA_HLS_RE.test(url.pathname)) return { mode: 'hls', url: raw };
   if (CINEMA_DIRECT_VIDEO_RE.test(url.pathname)) return { mode: 'video', url: raw };
 
+  // IMDB direct
+  const imdbMatch = raw.match(/imdb\.com\/title\/(tt\d{6,})/i) || raw.match(/^(tt\d{6,})$/);
+  if (imdbMatch) return { mode: 'resolve', url: raw, imdbId: imdbMatch[1] };
+
+  // Movie aggregator → server-side resolve via IMDB
+  const isAggregator = CINEMA_AGGREGATORS.some(d => host === d || host.endsWith('.' + d));
+  if (isAggregator) return { mode: 'resolve', url: raw };
+
   // Default: iframe whatever they paste
   return { mode: 'iframe', url: raw };
+}
+
+async function cinemaResolveMovie(rawUrl, imdbId) {
+  const params = new URLSearchParams();
+  if (imdbId) params.set('imdb', imdbId);
+  else params.set('url', rawUrl);
+  const r = await fetch('/api/movie-resolve?' + params.toString());
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `Resolve failed (${r.status})`);
+  }
+  return r.json();
 }
 
 let cinemaHlsInstance = null;
@@ -6859,10 +6886,19 @@ function cinemaStopUrl() {
   }
 }
 
+// Active embed providers for current movie (rotated when user clicks "Try other source")
+let cinemaEmbedProviders = [];
+let cinemaEmbedIdx = 0;
+let cinemaResolvedMeta = null;
+
 async function cinemaPlayUrl(rawUrl) {
-  const { mode, url } = cinemaTransformUrl(rawUrl);
+  const { mode, url, imdbId } = cinemaTransformUrl(rawUrl);
   cinemaPushUrlHistory(rawUrl);
   cinemaCloseUrlModal();
+
+  if (mode === 'resolve') {
+    return cinemaPlayResolved(rawUrl, imdbId);
+  }
 
   const playerWrap = document.getElementById('cinemaPlayerWrap');
   const empty = document.getElementById('cinemaEmpty');
@@ -6977,6 +7013,114 @@ function cinemaShowIframeFallback(originalUrl) {
   `;
   viewport.appendChild(fb);
   if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
+}
+
+async function cinemaPlayResolved(rawUrl, imdbIdHint) {
+  const playerWrap = document.getElementById('cinemaPlayerWrap');
+  const empty = document.getElementById('cinemaEmpty');
+  const video = document.getElementById('cinemaVideo');
+  const iframe = document.getElementById('cinemaIframe');
+  const controls = document.getElementById('cinemaControls');
+  const overlay = document.getElementById('cinemaOverlay');
+  const viewport = document.getElementById('cinemaViewport');
+
+  viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
+  if (playerWrap) playerWrap.style.display = '';
+  if (empty) empty.style.display = 'none';
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); video.style.display = 'none'; }
+  if (controls) controls.style.display = 'none';
+  if (overlay) overlay.classList.add('hidden');
+  cinemaDestroyHls();
+  cinemaSetPlayingMode(true);
+
+  cinemaShowBar(rawUrl);
+  cinemaShowIframeLoader('Намирам филма в IMDb...');
+
+  let data;
+  try {
+    data = await cinemaResolveMovie(rawUrl, imdbIdHint);
+  } catch (e) {
+    cinemaHideIframeLoader();
+    cinemaShowIframeFallback(rawUrl);
+    showToast('Не намерих филма: ' + e.message);
+    return;
+  }
+  if (!data || !data.ok || !data.embeds || !data.embeds.length) {
+    cinemaHideIframeLoader();
+    cinemaShowIframeFallback(rawUrl);
+    showToast('IMDb не върна резултат');
+    return;
+  }
+
+  cinemaEmbedProviders = data.embeds;
+  cinemaEmbedIdx = 0;
+  cinemaResolvedMeta = data;
+  cinemaUpdateBarForResolved(rawUrl);
+  cinemaLoadEmbedAtIdx(0);
+  showToast('▶ ' + (data.title || 'Намерен') + (data.year ? ' (' + data.year + ')' : ''));
+}
+
+function cinemaUpdateBarForResolved(originalUrl) {
+  const bar = document.getElementById('cinemaBar');
+  const host = document.getElementById('cinemaBarHost');
+  const open = document.getElementById('cinemaBarOpen');
+  if (!bar) return;
+  bar.classList.add('show');
+  const meta = cinemaResolvedMeta || {};
+  const cur = cinemaEmbedProviders[cinemaEmbedIdx];
+  if (host) {
+    host.innerHTML = `<strong>${escHtml(meta.title || 'Filme')}</strong>` +
+      (meta.year ? ` <span style="opacity:.6">${meta.year}</span>` : '') +
+      ` · <span style="opacity:.7">${escHtml(cur ? cur.name : '—')}</span>`;
+  }
+  if (open) open.href = originalUrl;
+
+  // Add "next source" button if not present
+  let nextBtn = document.getElementById('cinemaBarNext');
+  if (!nextBtn) {
+    nextBtn = document.createElement('button');
+    nextBtn.id = 'cinemaBarNext';
+    nextBtn.className = 'cinema-bar-btn';
+    nextBtn.textContent = '🔄 Друг източник';
+    nextBtn.addEventListener('click', () => {
+      cinemaEmbedIdx = (cinemaEmbedIdx + 1) % cinemaEmbedProviders.length;
+      cinemaUpdateBarForResolved(originalUrl);
+      cinemaLoadEmbedAtIdx(cinemaEmbedIdx);
+    });
+    const stop = document.getElementById('cinemaBarStop');
+    bar.insertBefore(nextBtn, stop);
+  }
+}
+
+function cinemaLoadEmbedAtIdx(idx) {
+  const iframe = document.getElementById('cinemaIframe');
+  if (!iframe) return;
+  const provider = cinemaEmbedProviders[idx];
+  if (!provider) return;
+
+  cinemaShowIframeLoader('Зареждам ' + provider.name + '...');
+  iframe.style.display = '';
+  iframe.src = 'about:blank';
+
+  let didLoad = false;
+  const onLoad = () => { didLoad = true; cinemaHideIframeLoader(); };
+  iframe.addEventListener('load', onLoad, { once: true });
+  requestAnimationFrame(() => { iframe.src = provider.url; });
+
+  setTimeout(() => {
+    iframe.removeEventListener('load', onLoad);
+    if (!didLoad) {
+      // Auto-rotate to next source
+      const next = (idx + 1) % cinemaEmbedProviders.length;
+      if (next !== idx && cinemaEmbedProviders.length > 1) {
+        cinemaEmbedIdx = next;
+        cinemaUpdateBarForResolved(document.getElementById('cinemaBarOpen')?.href || '#');
+        cinemaLoadEmbedAtIdx(next);
+      } else {
+        cinemaHideIframeLoader();
+      }
+    }
+  }, 9000);
 }
 
 function cinemaRemoveFromPlaylist(idx) {
