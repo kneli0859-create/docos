@@ -750,11 +750,26 @@ body::after {
 /* ═══════════════════════════════════════════════════════════
    CHAMELEON MODE — auto color cycle everywhere
    Activated by [data-chameleon="on"] on <html> via pro.js
+   Uses a registered animatable hue variable so gradient
+   colors actually morph (not just filter hue-rotate).
    ═══════════════════════════════════════════════════════════ */
 
+@property --pro-h {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 42deg;
+}
+@keyframes pro-h-spin {
+  from { --pro-h: 0deg; }
+  to   { --pro-h: 360deg; }
+}
+html[data-chameleon="on"] {
+  animation: pro-h-spin 9s linear infinite;
+}
+
 @keyframes pro-cham-hue {
-  0%   { filter: hue-rotate(0deg)   saturate(1.05); }
-  100% { filter: hue-rotate(360deg) saturate(1.05); }
+  0%   { filter: hue-rotate(0deg)   saturate(1.1); }
+  100% { filter: hue-rotate(360deg) saturate(1.1); }
 }
 @keyframes pro-cham-hue-bg {
   0%   { filter: hue-rotate(0deg)   blur(40px); }
@@ -833,6 +848,261 @@ html[data-chameleon="on"] .dash-action-btn:nth-child(2) { animation-delay: -1.5s
 html[data-chameleon="on"] .dash-action-btn:nth-child(3) { animation-delay: -3s; }
 html[data-chameleon="on"] .dash-action-btn:nth-child(4) { animation-delay: -4.5s; }
 
+/* ── Strong chameleon overrides — actual gradient colors morph ── */
+
+/* Whole-page aurora background uses the animated hue var */
+html[data-chameleon="on"] body::before {
+  background:
+    radial-gradient(70% 55% at 18% 10%, hsla(var(--pro-h), 90%, 60%, 0.32), transparent 60%),
+    radial-gradient(60% 50% at 88% 30%, hsla(calc(var(--pro-h) + 120deg), 90%, 60%, 0.25), transparent 60%),
+    radial-gradient(80% 65% at 50% 100%, hsla(calc(var(--pro-h) + 240deg), 90%, 60%, 0.25), transparent 60%) !important;
+  animation: pro-aurora 22s ease-in-out infinite alternate !important;
+  opacity: 1;
+}
+
+/* Hero card surface + gradient border morph */
+html[data-chameleon="on"] .dash-hero {
+  background:
+    radial-gradient(120% 100% at 0% 0%, hsla(var(--pro-h), 85%, 55%, 0.22), transparent 55%),
+    radial-gradient(120% 100% at 100% 100%, hsla(calc(var(--pro-h) + 180deg), 85%, 55%, 0.18), transparent 55%),
+    linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012)) !important;
+  border-color: hsla(var(--pro-h), 70%, 55%, 0.28) !important;
+}
+html[data-chameleon="on"] .dash-hero::before {
+  background: linear-gradient(135deg,
+    hsla(var(--pro-h), 90%, 60%, 0.6),
+    transparent 35%, transparent 65%,
+    hsla(calc(var(--pro-h) + 180deg), 90%, 60%, 0.45)) !important;
+  opacity: 0.85;
+  animation: none;
+}
+
+/* CLOCK — full color morph (gradient text + glow) */
+html[data-chameleon="on"] .dash-hero-time {
+  background: linear-gradient(180deg,
+    #ffffff 0%,
+    hsl(var(--pro-h), 95%, 72%) 55%,
+    hsl(var(--pro-h), 85%, 50%) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 8px 40px hsla(var(--pro-h), 95%, 60%, 0.5) !important;
+  filter: drop-shadow(0 0 22px hsla(var(--pro-h), 95%, 60%, 0.6)) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .dash-hero-storage-dot {
+  background: hsl(var(--pro-h), 95%, 65%) !important;
+  box-shadow: 0 0 14px hsl(var(--pro-h), 95%, 65%) !important;
+}
+
+/* Brand logo + version pill */
+html[data-chameleon="on"] .app-logo {
+  background: linear-gradient(135deg,
+    hsl(var(--pro-h), 95%, 75%),
+    hsl(var(--pro-h), 85%, 50%)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .app-version {
+  background: hsla(var(--pro-h), 90%, 55%, 0.15) !important;
+  color: hsl(var(--pro-h), 95%, 75%) !important;
+  border-color: hsla(var(--pro-h), 90%, 55%, 0.35) !important;
+  animation: none !important;
+}
+
+/* Stat cards — number gradient + border tint */
+html[data-chameleon="on"] .dash-stat-num {
+  background: linear-gradient(180deg, #ffffff, hsl(var(--pro-h), 90%, 65%)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .dash-stat-card {
+  background: linear-gradient(160deg,
+    hsla(var(--pro-h), 70%, 55%, 0.10),
+    hsla(calc(var(--pro-h) + 60deg), 70%, 55%, 0.04)) !important;
+  border-color: hsla(var(--pro-h), 70%, 55%, 0.25) !important;
+  animation: none !important;
+}
+
+/* Storage progress bar — full HSL morph */
+html[data-chameleon="on"] .dash-storage-bar-fill,
+html[data-chameleon="on"] .dash-storage-micro-fill {
+  background: linear-gradient(90deg,
+    hsl(var(--pro-h), 90%, 55%),
+    hsl(calc(var(--pro-h) + 40deg), 95%, 65%)) !important;
+  box-shadow: 0 0 14px hsla(var(--pro-h), 95%, 60%, 0.7) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .dash-storage-health {
+  background: hsla(calc(var(--pro-h) + 180deg), 80%, 55%, 0.12) !important;
+  color: hsl(calc(var(--pro-h) + 180deg), 90%, 70%) !important;
+  border-color: hsla(calc(var(--pro-h) + 180deg), 80%, 55%, 0.30) !important;
+  animation: none !important;
+}
+
+/* Premium cards (storage widget, calendar wrap, settings groups) */
+html[data-chameleon="on"] .card-premium,
+html[data-chameleon="on"] .dash-storage-widget,
+html[data-chameleon="on"] .dash-calendar-wrap,
+html[data-chameleon="on"] .settings-group {
+  background: linear-gradient(160deg,
+    hsla(var(--pro-h), 60%, 50%, 0.08),
+    hsla(calc(var(--pro-h) + 60deg), 60%, 50%, 0.025)) !important;
+  border-color: hsla(var(--pro-h), 65%, 55%, 0.22) !important;
+  animation: none !important;
+}
+
+/* Quick action buttons */
+html[data-chameleon="on"] .dash-action-btn {
+  background: linear-gradient(160deg,
+    hsla(var(--pro-h), 70%, 55%, 0.14),
+    hsla(calc(var(--pro-h) + 60deg), 70%, 55%, 0.04)) !important;
+  border-color: hsla(var(--pro-h), 70%, 55%, 0.28) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .dash-action-btn::before {
+  background: radial-gradient(80% 60% at 50% 0%,
+    hsla(var(--pro-h), 90%, 60%, 0.28), transparent 70%) !important;
+}
+html[data-chameleon="on"] .dash-action-ico {
+  filter: drop-shadow(0 4px 14px hsla(var(--pro-h), 95%, 60%, 0.7)) !important;
+  animation: none !important;
+}
+
+/* Section header gold bar + link buttons + chips */
+html[data-chameleon="on"] .section-header::before {
+  background: linear-gradient(180deg,
+    hsl(var(--pro-h), 95%, 70%),
+    hsl(var(--pro-h), 85%, 45%)) !important;
+  box-shadow: 0 0 12px hsl(var(--pro-h), 95%, 60%) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .link-btn {
+  background: hsla(var(--pro-h), 85%, 55%, 0.12) !important;
+  color: hsl(var(--pro-h), 95%, 75%) !important;
+  border-color: hsla(var(--pro-h), 85%, 55%, 0.30) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .filter-chip.active {
+  background: linear-gradient(135deg,
+    hsl(var(--pro-h), 90%, 55%),
+    hsl(calc(var(--pro-h) - 30deg), 85%, 45%)) !important;
+  color: #0a0e1a !important;
+  box-shadow: 0 6px 20px -4px hsla(var(--pro-h), 95%, 55%, 0.6) !important;
+  animation: none !important;
+}
+
+/* Primary buttons */
+html[data-chameleon="on"] .btn-primary {
+  background: linear-gradient(135deg,
+    hsl(var(--pro-h), 95%, 70%),
+    hsl(calc(var(--pro-h) - 30deg), 85%, 50%)) !important;
+  color: #0a0e1a !important;
+  box-shadow: 0 10px 30px -8px hsla(var(--pro-h), 95%, 55%, 0.7),
+              inset 0 1px 0 rgba(255,255,255,0.45) !important;
+  animation: none !important;
+}
+
+/* Search input + form fields */
+html[data-chameleon="on"] .search-input:focus {
+  border-color: hsla(var(--pro-h), 85%, 55%, 0.55) !important;
+  box-shadow: 0 0 0 4px hsla(var(--pro-h), 85%, 55%, 0.14) !important;
+}
+
+/* Sheets */
+html[data-chameleon="on"] .sheet {
+  border-top-color: hsla(var(--pro-h), 70%, 55%, 0.30) !important;
+  box-shadow: 0 -20px 60px -10px rgba(0,0,0,0.7),
+              inset 0 1px 0 hsla(var(--pro-h), 90%, 60%, 0.15) !important;
+}
+html[data-chameleon="on"] .sheet-title {
+  background: linear-gradient(180deg, #fff, hsl(var(--pro-h), 95%, 70%)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: none !important;
+}
+
+/* Bottom dock — active tab + center disc */
+html[data-chameleon="on"] .bottom-dock {
+  border-top-color: hsla(var(--pro-h), 70%, 55%, 0.20) !important;
+}
+html[data-chameleon="on"] .dock-btn.active {
+  color: hsl(var(--pro-h), 95%, 75%) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .dock-btn.active::before {
+  background: linear-gradient(90deg,
+    hsl(var(--pro-h), 95%, 70%),
+    hsl(calc(var(--pro-h) - 30deg), 85%, 50%)) !important;
+  box-shadow: 0 0 12px hsl(var(--pro-h), 95%, 60%) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .dock-btn.active .dock-icon {
+  filter: drop-shadow(0 0 14px hsla(var(--pro-h), 95%, 60%, 0.7)) !important;
+}
+html[data-chameleon="on"] .dock-center .dock-icon {
+  background: linear-gradient(135deg,
+    hsl(var(--pro-h), 95%, 70%),
+    hsl(calc(var(--pro-h) - 30deg), 85%, 50%)) !important;
+  box-shadow:
+    0 14px 30px -8px hsla(var(--pro-h), 95%, 55%, 0.75),
+    inset 0 1px 0 rgba(255,255,255,0.55),
+    inset 0 -8px 18px rgba(0,0,0,0.18) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .dock-center .dock-icon::before {
+  background: conic-gradient(from 0deg,
+    hsl(var(--pro-h), 95%, 60%),
+    hsl(calc(var(--pro-h) + 90deg), 95%, 60%),
+    hsl(calc(var(--pro-h) + 180deg), 95%, 60%),
+    hsl(calc(var(--pro-h) + 270deg), 95%, 60%),
+    hsl(var(--pro-h), 95%, 60%)) !important;
+}
+
+/* PIN screen */
+html[data-chameleon="on"] .pin-lock-screen {
+  background: radial-gradient(ellipse at top,
+    hsla(var(--pro-h), 85%, 55%, 0.16), transparent 60%),
+    var(--pro-bg-0) !important;
+}
+html[data-chameleon="on"] .pin-lock-logo {
+  filter: drop-shadow(0 0 28px hsla(var(--pro-h), 95%, 60%, 0.65)) !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .pin-lock-title {
+  background: linear-gradient(180deg, #fff, hsl(var(--pro-h), 95%, 72%)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: none !important;
+}
+html[data-chameleon="on"] .pin-dot.filled {
+  background: linear-gradient(135deg,
+    hsl(var(--pro-h), 95%, 70%),
+    hsl(calc(var(--pro-h) - 30deg), 85%, 50%)) !important;
+  box-shadow: 0 0 18px hsl(var(--pro-h), 95%, 60%) !important;
+  animation: none !important;
+}
+
+/* Notification dot */
+html[data-chameleon="on"] .notif-dot {
+  background: linear-gradient(135deg,
+    hsl(var(--pro-h), 95%, 65%),
+    hsl(calc(var(--pro-h) + 60deg), 95%, 60%)) !important;
+  box-shadow: 0 0 12px hsla(var(--pro-h), 95%, 55%, 0.8) !important;
+}
+
+/* Topbar gets a subtle hue tint too */
+html[data-chameleon="on"] .topbar {
+  border-bottom-color: hsla(var(--pro-h), 70%, 55%, 0.18) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html[data-chameleon="on"] { animation: none !important; }
   html[data-chameleon="on"] * { animation-duration: 0.01ms !important; }
 }
