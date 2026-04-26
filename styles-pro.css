@@ -746,3 +746,93 @@ body::after {
 /* ── iOS safe areas ──────────────────────────────────────── */
 .topbar { padding-top: max(10px, env(safe-area-inset-top)) !important; }
 .screen-scroll { padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   CHAMELEON MODE — auto color cycle everywhere
+   Activated by [data-chameleon="on"] on <html> via pro.js
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes pro-cham-hue {
+  0%   { filter: hue-rotate(0deg)   saturate(1.05); }
+  100% { filter: hue-rotate(360deg) saturate(1.05); }
+}
+@keyframes pro-cham-hue-bg {
+  0%   { filter: hue-rotate(0deg)   blur(40px); }
+  100% { filter: hue-rotate(360deg) blur(40px); }
+}
+@keyframes pro-cham-hue-soft {
+  0%   { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+/* Chameleon button — visual cue when armed */
+html[data-chameleon="on"] #themeToggleBtn {
+  background: conic-gradient(from 0deg, #ff5b78, #ffcf6b, #5fc8ff, #8a7bff, #ff5b78) !important;
+  border-color: transparent !important;
+  animation: pro-spin 6s linear infinite;
+  box-shadow: 0 0 18px rgba(212, 168, 67, 0.55), 0 0 30px rgba(95, 200, 255, 0.35);
+}
+html[data-chameleon="on"] #themeToggleBtn::after {
+  content: "🎨";
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  animation: pro-cham-hue-soft 6s linear infinite reverse;
+  filter: drop-shadow(0 0 6px rgba(0,0,0,0.5));
+}
+
+/* Aurora background hue-cycles too */
+html[data-chameleon="on"] body::before {
+  animation: pro-aurora 22s ease-in-out infinite alternate, pro-cham-hue-bg 14s linear infinite;
+}
+
+/* Apply hue-rotate to all gold/accent elements */
+html[data-chameleon="on"] .app-logo,
+html[data-chameleon="on"] .app-version,
+html[data-chameleon="on"] .dash-hero::before,
+html[data-chameleon="on"] .dash-hero-time,
+html[data-chameleon="on"] .dash-hero-storage-dot,
+html[data-chameleon="on"] .dash-stat-num,
+html[data-chameleon="on"] .dash-storage-bar-fill,
+html[data-chameleon="on"] .dash-storage-micro-fill,
+html[data-chameleon="on"] .dash-storage-health,
+html[data-chameleon="on"] .dash-action-ico,
+html[data-chameleon="on"] .section-header::before,
+html[data-chameleon="on"] .link-btn,
+html[data-chameleon="on"] .filter-chip.active,
+html[data-chameleon="on"] .btn-primary,
+html[data-chameleon="on"] .danger-btn,
+html[data-chameleon="on"] .pin-lock-logo,
+html[data-chameleon="on"] .pin-lock-title,
+html[data-chameleon="on"] .pin-dot.filled,
+html[data-chameleon="on"] .dock-btn.active,
+html[data-chameleon="on"] .dock-btn.active::before,
+html[data-chameleon="on"] .dock-center .dock-icon,
+html[data-chameleon="on"] .dock-center .dock-icon::before,
+html[data-chameleon="on"] .sheet-title,
+html[data-chameleon="on"] .notif-dot,
+html[data-chameleon="on"] .empty-icon {
+  animation: pro-cham-hue 8s linear infinite;
+}
+
+/* Cards get a softer rolling hue tint via border/glow */
+html[data-chameleon="on"] .card-premium,
+html[data-chameleon="on"] .dash-storage-widget,
+html[data-chameleon="on"] .dash-calendar-wrap,
+html[data-chameleon="on"] .dash-stat-card,
+html[data-chameleon="on"] .dash-action-btn,
+html[data-chameleon="on"] .settings-group {
+  animation: pro-cham-hue-soft 12s linear infinite;
+}
+
+/* Slight stagger so it feels alive instead of locked */
+html[data-chameleon="on"] .dash-stat-card:nth-child(2) { animation-delay: -2s; }
+html[data-chameleon="on"] .dash-stat-card:nth-child(3) { animation-delay: -4s; }
+html[data-chameleon="on"] .dash-stat-card:nth-child(4) { animation-delay: -6s; }
+html[data-chameleon="on"] .dash-action-btn:nth-child(2) { animation-delay: -1.5s; }
+html[data-chameleon="on"] .dash-action-btn:nth-child(3) { animation-delay: -3s; }
+html[data-chameleon="on"] .dash-action-btn:nth-child(4) { animation-delay: -4.5s; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-chameleon="on"] * { animation-duration: 0.01ms !important; }
+}
