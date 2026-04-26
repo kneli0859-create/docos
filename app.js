@@ -1319,6 +1319,41 @@ async function migrateLegacyInlineDataToIndexedDb() {
   if (changed) saveState();
 }
 
+function generateImageThumbDataUrl(file, maxSide = 480) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type || !file.type.startsWith('image/')) return reject(new Error('not an image'));
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        if (!w || !h) throw new Error('zero dimensions');
+        const scale = Math.min(1, maxSide / Math.max(w, h));
+        const tw = Math.max(1, Math.round(w * scale));
+        const th = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = tw;
+        canvas.height = th;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, tw, th);
+        // Use jpeg for photos (smaller), png for transparency
+        const usePng = (file.type === 'image/png' || file.type === 'image/gif' || file.type === 'image/webp');
+        const data = canvas.toDataURL(usePng ? 'image/png' : 'image/jpeg', 0.82);
+        URL.revokeObjectURL(url);
+        resolve(data);
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
+    img.src = url;
+    setTimeout(() => { URL.revokeObjectURL(url); reject(new Error('image thumb timeout')); }, 12000);
+  });
+}
+
 function generateVideoThumbDataUrl(file, seekTime = 1.0) {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
@@ -1382,7 +1417,10 @@ async function persistUploadedFile(file, ownerPrefix = 'asset', displayFileName 
 
   let previewDataUrl = '';
   if (mimeType.startsWith('image/')) {
-    previewDataUrl = await getObjectUrlForBlobKey(blobKey, file);
+    // Persistent data:URL thumbnail (survives reload, unlike blob:// URLs)
+    previewDataUrl = await generateImageThumbDataUrl(file).catch(() => '');
+    // Fallback to live object URL if thumb generation fails
+    if (!previewDataUrl) previewDataUrl = await getObjectUrlForBlobKey(blobKey, file);
   } else if (mimeType === 'application/pdf') {
     previewDataUrl = await generatePdfThumbDataUrlFromBlob(file).catch(() => '');
   } else if (mimeType.startsWith('video/')) {
@@ -4354,7 +4392,8 @@ async function addToIntakeQueue(file, contextFolderId = null, options = {}) {
   }
 
   const cleanFileName = cleanupImportedFileName(file.name);
-  if (hasLikelyLocalDuplicate(cleanFileName, file.size || 0, file.type || guessMimeType(cleanFileName))) {
+  // Only block duplicates for generic uploads, not when user explicitly drops files into a folder
+  if (!contextFolderId && hasLikelyLocalDuplicate(cleanFileName, file.size || 0, file.type || guessMimeType(cleanFileName))) {
     const duplicateError = new Error('Дубликат');
     duplicateError.code = 'duplicate';
     throw duplicateError;
@@ -4476,8 +4515,12 @@ async function addToIntakeQueue(file, contextFolderId = null, options = {}) {
     if (!deferRender) {
       await refreshStorageEstimate(true);
       if (contextFolderId && autoSaveFolder) {
-        showTab('documents');
-        setTimeout(() => showFolderDetail(contextFolderId), 60);
+        // Stay inside the folder detail view — just re-render it
+        if (state.currentTab !== 'folder-detail' && state.currentFolderId !== contextFolderId) {
+          showFolderDetail(contextFolderId);
+        } else {
+          renderFolderDetail();
+        }
       } else {
         showTab('scan');
         renderScanTab();
@@ -4550,11 +4593,14 @@ async function processBulkUpload(files, contextFolderId = null) {
   renderDashboard();
   renderMoreTab();
   if (contextFolderId) {
-    showTab('documents');
-    renderFolderDetail();
-    if (runtimeBatchSummary.failed > 0) showToast(`📦 ${runtimeBatchSummary.saved} в папката · ${runtimeBatchSummary.failed} грешка`);
-    else if (runtimeBatchSummary.duplicates > 0) showToast(`📦 ${runtimeBatchSummary.saved} записани · ${runtimeBatchSummary.duplicates} дубликата`);
-    else showToast(`📦 ${runtimeBatchSummary.saved} записани в папката`);
+    // Stay in the folder — make sure currentFolderId matches and re-render
+    if (state.currentFolderId !== contextFolderId) {
+      showFolderDetail(contextFolderId);
+    } else {
+      renderFolderDetail();
+    }
+    if (runtimeBatchSummary.failed > 0) showToast(`✓ ${runtimeBatchSummary.saved} качени · ${runtimeBatchSummary.failed} грешка`);
+    else showToast(`✓ ${runtimeBatchSummary.saved} ${runtimeBatchSummary.saved === 1 ? 'качен файл' : 'качени файла'}`);
   } else {
     showTab('scan');
     showToast(`📦 ${runtimeBatchSummary.queued} в опашка · ${runtimeBatchSummary.duplicates} дубликата · ${runtimeBatchSummary.failed} грешка`);
