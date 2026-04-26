@@ -1041,18 +1041,56 @@ async function openAssetDb() {
   return assetDbPromise;
 }
 
+// iOS Safari bug: File objects from <input type="file"> sometimes fail to
+// serialize into IndexedDB ('Error preparing Blob/File data to be stored in
+// object store'). Workaround: read into ArrayBuffer then construct a fresh Blob.
+async function safeNormalizeBlob(blobOrFile) {
+  if (!blobOrFile) return null;
+  // Already a plain Blob (not File) — usually safe
+  if (blobOrFile instanceof Blob && !(blobOrFile instanceof File)) return blobOrFile;
+  try {
+    const buf = await blobOrFile.arrayBuffer();
+    return new Blob([buf], { type: blobOrFile.type || 'application/octet-stream' });
+  } catch (_) {
+    return blobOrFile;
+  }
+}
+
 async function putAssetRecord(record) {
   const db = await openAssetDb();
-  if (typeof db.put === 'function') {
-    await db.put(ASSET_STORE, record);
-    return record;
+  // Normalize File → fresh Blob to avoid iOS structured-clone bug
+  if (record && record.blob) {
+    try {
+      record = { ...record, blob: await safeNormalizeBlob(record.blob) };
+    } catch (_) {}
   }
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(ASSET_STORE, 'readwrite');
-    tx.objectStore(ASSET_STORE).put(record);
-    tx.oncomplete = () => resolve(record);
-    tx.onerror = () => reject(tx.error || new Error('IndexedDB put error'));
-  });
+
+  const writeRecord = async (rec) => {
+    if (typeof db.put === 'function') {
+      await db.put(ASSET_STORE, rec);
+      return rec;
+    }
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(ASSET_STORE, 'readwrite');
+      tx.objectStore(ASSET_STORE).put(rec);
+      tx.oncomplete = () => resolve(rec);
+      tx.onerror = () => reject(tx.error || new Error('IndexedDB put error'));
+    });
+  };
+
+  try {
+    return await writeRecord(record);
+  } catch (e) {
+    // Last-resort retry: re-normalize aggressively (handles edge cases on iOS)
+    if (record && record.blob) {
+      try {
+        const buf = await record.blob.arrayBuffer();
+        const fresh = new Blob([buf], { type: record.blob.type || 'application/octet-stream' });
+        return await writeRecord({ ...record, blob: fresh });
+      } catch (_) {}
+    }
+    throw e;
+  }
 }
 
 async function getAssetRecord(id) {
@@ -4535,6 +4573,84 @@ async function addToIntakeQueue(file, contextFolderId = null, options = {}) {
   }
 }
 
+// FAST PATH: direct folder upload — bypasses intake queue entirely.
+// Used when user explicitly drops files into a folder (no review needed).
+async function directFolderUpload(files, folderId) {
+  const fileList = Array.from(files || []).filter(Boolean);
+  if (!fileList.length || !folderId) return;
+  const folder = state.folders.find(f => f.id === folderId);
+  if (!folder) { showToast('⚠️ Папката не съществува'); return; }
+
+  showToast(`⏳ Качвам ${fileList.length} ${fileList.length === 1 ? 'файл' : 'файла'}...`);
+
+  let saved = 0, failed = 0;
+  for (const file of fileList) {
+    try {
+      if ((file.size || 0) > MAX_LOCAL_FILE_BYTES) {
+        showToast(`⚠️ ${file.name} е твърде голям (${formatBytes(file.size || 0)})`);
+        failed++;
+        continue;
+      }
+      const cleanFileName = cleanupImportedFileName(file.name);
+      const persisted = await persistUploadedFile(file, 'folder', cleanFileName);
+      const analysis = HEURISTICS.analyze(cleanFileName, file.type);
+      const doc = {
+        id: uid(),
+        title: analysis.suggestedTitle || cleanFileName.replace(/\.[a-z0-9]{2,5}$/i, ''),
+        folderId,
+        status: 'saved',
+        sourceType: 'upload',
+        institution: analysis.institution || '',
+        date: analysis.detectedDate || '',
+        detectedDate: analysis.detectedDate || '',
+        detectedYear: analysis.detectedYear || '',
+        detectedTime: analysis.detectedTime || '',
+        confidence: analysis.confidence || 0,
+        createdAt: new Date().toISOString(),
+        previewType: analysis.previewType,
+        originalFileName: cleanFileName,
+        previewDataUrl: persisted.previewDataUrl || '',
+        docType: analysis.docType || '',
+        blobKey: persisted.blobKey,
+        fileMime: persisted.fileMime,
+        fileSize: persisted.fileSize,
+        extractedText: '',
+        summary: analysis.docTypeLabel || '',
+        cleanFileName,
+        parserVersion: 0,
+        parsedData: normalizeParsedData({
+          typeKey: analysis.docType || 'other',
+          typeLabel: analysis.docTypeLabel || 'Документ',
+          title: analysis.suggestedTitle || cleanFileName,
+          summary: analysis.docTypeLabel || 'Документ',
+          confidence: analysis.confidence || 0,
+          source: 'direct-folder-upload'
+        }),
+        homeHidden: true
+      };
+      state.documents.push(doc);
+      saved++;
+      // Save state per file so a partial failure doesn't lose everything
+      saveState();
+      // Live re-render so user sees files appearing one by one
+      if (state.currentFolderId === folderId) renderFolderDetail();
+    } catch (e) {
+      console.error('directFolderUpload failed for', file.name, e);
+      showToast(`❌ ${file.name}: ${e.message || 'грешка'}`, 4500);
+      failed++;
+    }
+  }
+
+  await refreshStorageEstimate(true);
+  if (state.currentFolderId === folderId) renderFolderDetail();
+  renderDashboard();
+  renderDocuments();
+
+  if (saved && !failed) showToast(`✓ ${saved} ${saved === 1 ? 'файл качен' : 'файла качени'}`);
+  else if (saved && failed) showToast(`✓ ${saved} качени · ${failed} грешка`);
+  else if (failed) showToast(`❌ ${failed} файла не се качиха`);
+}
+
 async function processBulkUpload(files, contextFolderId = null) {
   const fileList = Array.from(files || []).filter(Boolean);
   if (!fileList.length) return;
@@ -5880,13 +5996,13 @@ function initEventListeners() {
     document.getElementById('folderCameraInput').click();
   });
 
-  // Folder file inputs (context = currentFolderId)
+  // Folder file inputs — use fast direct path, bypass intake queue
   document.getElementById('folderFileInput')?.addEventListener('change', (e) => {
-    processBulkUpload(e.target.files, state.currentFolderId);
+    directFolderUpload(e.target.files, state.currentFolderId);
     e.target.value = '';
   });
   document.getElementById('folderCameraInput')?.addEventListener('change', (e) => {
-    processBulkUpload(e.target.files, state.currentFolderId);
+    directFolderUpload(e.target.files, state.currentFolderId);
     e.target.value = '';
   });
 
@@ -7556,6 +7672,18 @@ async function init() {
   lockHorizontalScroll();
   initViewportCssSync();
   loadState();
+  // One-time cleanup: nuke stuck "Error preparing Blob" intake items from old SW versions
+  if (state.intakeQueue && state.intakeQueue.length) {
+    const before = state.intakeQueue.length;
+    state.intakeQueue = state.intakeQueue.filter(item =>
+      !/Error preparing|object store|prepar/i.test(item.uploadError || '') &&
+      item.uploadState !== 'грешка'
+    );
+    if (state.intakeQueue.length !== before) {
+      saveState();
+      console.info(`DocOS: cleaned ${before - state.intakeQueue.length} stuck intake items`);
+    }
+  }
   await openAssetDb().catch(err => {
     console.warn('DocOS: IndexedDB unavailable, fallback to metadata-only mode', err);
   });
