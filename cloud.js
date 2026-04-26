@@ -61,28 +61,52 @@
   function loadSupabaseLib() {
     return new Promise(function (resolve, reject) {
       if (window.supabase && window.supabase.createClient) return resolve(window.supabase);
-      var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-      s.onload = function () { resolve(window.supabase); };
-      s.onerror = function () { reject(new Error('Supabase lib failed to load')); };
-      document.head.appendChild(s);
+      // Try alternate CDN as fallback
+      var tries = [
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
+        'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js'
+      ];
+      var idx = 0;
+      function attempt() {
+        if (idx >= tries.length) return reject(new Error('Supabase библиотеката не се зарежда (мрежа?)'));
+        var s = document.createElement('script');
+        s.src = tries[idx++];
+        s.onload = function () {
+          if (window.supabase && window.supabase.createClient) resolve(window.supabase);
+          else attempt();
+        };
+        s.onerror = attempt;
+        document.head.appendChild(s);
+      }
+      // Wait briefly in case the head <script> is still loading
+      var waitMs = 0;
+      var poll = setInterval(function () {
+        if (window.supabase && window.supabase.createClient) { clearInterval(poll); resolve(window.supabase); }
+        else if ((waitMs += 100) > 800) { clearInterval(poll); attempt(); }
+      }, 100);
     });
   }
 
   async function initClient() {
     if (sb) return sb;
-    var lib = await loadSupabaseLib();
-    sb = lib.createClient(SUPABASE_URL, SUPABASE_ANON, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'docos-cloud-auth' }
-    });
-    var got = await sb.auth.getSession();
-    session = got.data.session;
-    sb.auth.onAuthStateChange(function (_evt, s) {
-      session = s;
-      renderPanel();
-      if (s && autosync) schedulePush(800);
-    });
-    return sb;
+    try {
+      var lib = await loadSupabaseLib();
+      sb = lib.createClient(SUPABASE_URL, SUPABASE_ANON, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'docos-cloud-auth' }
+      });
+      var got = await sb.auth.getSession();
+      session = got.data.session;
+      sb.auth.onAuthStateChange(function (_evt, s) {
+        session = s;
+        renderPanel();
+        if (s && autosync) schedulePush(800);
+      });
+      return sb;
+    } catch (e) {
+      console.error('[cloud init failed]', e);
+      toast('Облакът не зарежда: ' + (e.message || e), 'err');
+      throw e;
+    }
   }
 
   // ── State sync ──────────────────────────────────────────
@@ -258,29 +282,46 @@
 
   // ── Auth ────────────────────────────────────────────────
   async function sendMagicLink(email) {
-    await initClient();
-    var ret = await sb.auth.signInWithOtp({
-      email: email,
-      options: { emailRedirectTo: location.origin + location.pathname }
-    });
-    if (ret.error) { toast('Грешка: ' + ret.error.message, 'err'); return false; }
-    toast('📧 Провери имейла за линка', 'ok');
-    return true;
-  }
-  async function passwordAuth(email, password) {
-    await initClient();
-    var r = await sb.auth.signInWithPassword({ email: email, password: password });
-    if (!r.error) { toast('☁️ Влязохте', 'ok'); return true; }
-    var msg = (r.error && r.error.message) || '';
-    if (/invalid login|invalid credentials/i.test(msg)) {
-      var u = await sb.auth.signUp({ email: email, password: password });
-      if (u.error) { toast('Грешка: ' + u.error.message, 'err'); return false; }
-      if (u.data && u.data.session) { toast('☁️ Регистриран и влязохте', 'ok'); return true; }
-      toast('📧 Провери имейла за потвърждение', 'warn');
+    try {
+      await initClient();
+      var ret = await sb.auth.signInWithOtp({
+        email: email,
+        options: { emailRedirectTo: location.origin + location.pathname }
+      });
+      if (ret.error) { toast('Грешка: ' + ret.error.message, 'err'); console.error('[magic]', ret.error); return false; }
+      toast('📧 Провери имейла за линка', 'ok');
+      return true;
+    } catch (e) {
+      console.error('[magic exc]', e);
+      toast('Грешка: ' + (e.message || e), 'err');
       return false;
     }
-    toast('Грешка: ' + msg, 'err');
-    return false;
+  }
+  async function passwordAuth(email, password) {
+    try {
+      await initClient();
+      var r = await sb.auth.signInWithPassword({ email: email, password: password });
+      if (!r.error) { toast('☁️ Влязохте', 'ok'); return true; }
+      var msg = (r.error && r.error.message) || '';
+      console.warn('[signIn]', msg);
+      if (/invalid login|invalid credentials|invalid_credentials/i.test(msg)) {
+        var u = await sb.auth.signUp({ email: email, password: password });
+        if (u.error) {
+          console.error('[signUp]', u.error);
+          toast('Грешка: ' + u.error.message, 'err');
+          return false;
+        }
+        if (u.data && u.data.session) { toast('☁️ Регистриран и влязохте', 'ok'); return true; }
+        toast('📧 Регистриран — провери имейла. Или изключи Confirm email в Supabase.', 'warn');
+        return false;
+      }
+      toast('Грешка: ' + msg, 'err');
+      return false;
+    } catch (e) {
+      console.error('[pw auth exc]', e);
+      toast('Грешка: ' + (e.message || e), 'err');
+      return false;
+    }
   }
   async function signOut() {
     if (!sb) return;
