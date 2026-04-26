@@ -373,6 +373,7 @@
           <div class="cinema-player-wrap card-premium" id="cinemaPlayerWrap">
             <div class="cinema-viewport" id="cinemaViewport">
               <video class="cinema-video" id="cinemaVideo" playsinline preload="metadata"></video>
+              <iframe class="cinema-iframe" id="cinemaIframe" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" referrerpolicy="no-referrer-when-downgrade" allowfullscreen style="display:none"></iframe>
               <track kind="subtitles" id="cinemaSubTrack" src="" srclang="bg" label="Български" default/>
               <div class="cinema-overlay" id="cinemaOverlay">
                 <button class="cinema-big-play" id="cinemaBigPlay">▶</button>
@@ -417,10 +418,29 @@
               <span class="cinema-action-ico">🎬</span>
               <span>Качи видео</span>
             </button>
+            <button class="cinema-action-btn" id="cinemaLoadUrlBtn">
+              <span class="cinema-action-ico">🔗</span>
+              <span>Постави линк</span>
+            </button>
             <button class="cinema-action-btn" id="cinemaLoadSubBtn">
               <span class="cinema-action-ico">💬</span>
               <span>Субтитри (.srt)</span>
             </button>
+          </div>
+
+          <!-- URL paste modal -->
+          <div class="cinema-url-modal" id="cinemaUrlModal" style="display:none">
+            <div class="cinema-url-card">
+              <div class="cinema-url-head">
+                <span class="cinema-url-title">🔗 Пусни видео от линк</span>
+                <button class="cinema-url-close" id="cinemaUrlClose">✕</button>
+              </div>
+              <div class="cinema-url-blurb">Постави линк от YouTube, Vimeo, filmifen, filmizip, директен .mp4/.m3u8 — каквото и да е.</div>
+              <input type="url" id="cinemaUrlInput" class="cinema-url-input" placeholder="https://..." autocomplete="off"/>
+              <button class="cinema-url-go" id="cinemaUrlGo">▶ Пусни</button>
+              <div class="cinema-url-hint">⚠️ Някои сайтове (Netflix, HBO) не позволяват вграждане заради DRM. Ако линкът не работи → ще има бутон да го отвориш в нов прозорец.</div>
+              <div class="cinema-url-history" id="cinemaUrlHistory"></div>
+            </div>
           </div>
 
           <!-- Now Playing -->

@@ -6642,6 +6642,16 @@ function cinemaPlayIndex(idx) {
   const item = cinemaState.playlist[idx];
   if (!video || !item) return;
 
+  // Reset iframe/fallback if previously used for URL streaming
+  cinemaDestroyHls?.();
+  const iframe = document.getElementById('cinemaIframe');
+  if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
+  const viewport = document.getElementById('cinemaViewport');
+  viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
+  video.style.display = '';
+  const controls = document.getElementById('cinemaControls');
+  if (controls) controls.style.display = '';
+
   video.src = item.blobUrl;
   video.load();
 
@@ -6679,6 +6689,229 @@ function cinemaPlayIndex(idx) {
   }, { once: true });
 
   renderCinemaTab();
+}
+
+/* ─── URL paste / streaming ───────────────────────────── */
+
+const CINEMA_URL_HISTORY_LS = 'cinema_url_history';
+const CINEMA_DIRECT_VIDEO_RE = /\.(mp4|webm|mov|m4v|ogv|ogg)(\?|$)/i;
+const CINEMA_HLS_RE = /\.m3u8(\?|$)/i;
+const CINEMA_DASH_RE = /\.mpd(\?|$)/i;
+
+function cinemaOpenUrlModal() {
+  const m = document.getElementById('cinemaUrlModal');
+  if (!m) return;
+  m.style.display = 'flex';
+  cinemaRenderUrlHistory();
+  setTimeout(() => document.getElementById('cinemaUrlInput')?.focus(), 100);
+}
+
+function cinemaCloseUrlModal() {
+  const m = document.getElementById('cinemaUrlModal');
+  if (m) m.style.display = 'none';
+}
+
+function cinemaGetUrlHistory() {
+  try { return JSON.parse(localStorage.getItem(CINEMA_URL_HISTORY_LS) || '[]'); }
+  catch (_) { return []; }
+}
+function cinemaSaveUrlHistory(arr) {
+  try { localStorage.setItem(CINEMA_URL_HISTORY_LS, JSON.stringify(arr.slice(0, 10))); } catch (_) {}
+}
+function cinemaPushUrlHistory(url) {
+  let h = cinemaGetUrlHistory().filter(u => u !== url);
+  h.unshift(url);
+  cinemaSaveUrlHistory(h);
+}
+function cinemaRenderUrlHistory() {
+  const wrap = document.getElementById('cinemaUrlHistory');
+  if (!wrap) return;
+  const h = cinemaGetUrlHistory();
+  if (!h.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = '<div style="font-size:11px;opacity:.5;margin:8px 0 4px;letter-spacing:.5px">ПОСЛЕДНИ</div>' +
+    h.map((u, i) => {
+      let host = '', path = '';
+      try { const x = new URL(u); host = x.hostname.replace(/^www\./, ''); path = x.pathname + x.search; } catch (_) { host = u; }
+      return `<div class="cinema-url-history-item" data-url-idx="${i}">
+        <span class="url-host">${escHtml(host)}</span>
+        <span class="url-path">${escHtml(path)}</span>
+        <button class="url-del" data-url-del="${i}">✕</button>
+      </div>`;
+    }).join('');
+  wrap.querySelectorAll('.cinema-url-history-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.url-del')) return;
+      cinemaPlayUrl(h[Number(item.dataset.urlIdx)]);
+    });
+  });
+  wrap.querySelectorAll('.url-del').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const arr = cinemaGetUrlHistory();
+      arr.splice(Number(btn.dataset.urlDel), 1);
+      cinemaSaveUrlHistory(arr);
+      cinemaRenderUrlHistory();
+    });
+  });
+}
+
+function cinemaTransformUrl(raw) {
+  // Returns { mode: 'video'|'iframe'|'hls', url: string }
+  let url;
+  try { url = new URL(raw); } catch (_) { return { mode: 'iframe', url: raw }; }
+  const host = url.hostname.replace(/^www\./, '').toLowerCase();
+
+  // YouTube
+  if (host === 'youtube.com' || host === 'm.youtube.com') {
+    const id = url.searchParams.get('v');
+    if (id) return { mode: 'iframe', url: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0` };
+    const m = url.pathname.match(/\/(?:embed|shorts)\/([^/?]+)/);
+    if (m) return { mode: 'iframe', url: `https://www.youtube-nocookie.com/embed/${m[1]}?autoplay=1&rel=0` };
+  }
+  if (host === 'youtu.be') {
+    const id = url.pathname.replace(/^\//, '').split('?')[0];
+    if (id) return { mode: 'iframe', url: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0` };
+  }
+  // Vimeo
+  if (host === 'vimeo.com') {
+    const m = url.pathname.match(/\/(\d+)/);
+    if (m) return { mode: 'iframe', url: `https://player.vimeo.com/video/${m[1]}?autoplay=1` };
+  }
+  // Direct media
+  if (CINEMA_HLS_RE.test(url.pathname)) return { mode: 'hls', url: raw };
+  if (CINEMA_DIRECT_VIDEO_RE.test(url.pathname)) return { mode: 'video', url: raw };
+
+  // Default: iframe whatever they paste
+  return { mode: 'iframe', url: raw };
+}
+
+let cinemaHlsInstance = null;
+function cinemaDestroyHls() {
+  if (cinemaHlsInstance && typeof cinemaHlsInstance.destroy === 'function') {
+    try { cinemaHlsInstance.destroy(); } catch (_) {}
+  }
+  cinemaHlsInstance = null;
+}
+
+function cinemaLoadHlsLib() {
+  return new Promise((resolve, reject) => {
+    if (window.Hls) return resolve(window.Hls);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1';
+    s.onload = () => resolve(window.Hls);
+    s.onerror = () => reject(new Error('hls.js не зарежда'));
+    document.head.appendChild(s);
+  });
+}
+
+async function cinemaPlayUrl(rawUrl) {
+  const { mode, url } = cinemaTransformUrl(rawUrl);
+  cinemaPushUrlHistory(rawUrl);
+  cinemaCloseUrlModal();
+
+  const playerWrap = document.getElementById('cinemaPlayerWrap');
+  const empty = document.getElementById('cinemaEmpty');
+  const video = document.getElementById('cinemaVideo');
+  const iframe = document.getElementById('cinemaIframe');
+  const controls = document.getElementById('cinemaControls');
+  const overlay = document.getElementById('cinemaOverlay');
+  const viewport = document.getElementById('cinemaViewport');
+
+  // Cleanup previous fallback
+  viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
+
+  if (playerWrap) playerWrap.style.display = '';
+  if (empty) empty.style.display = 'none';
+
+  cinemaDestroyHls();
+
+  if (mode === 'video') {
+    if (iframe) iframe.style.display = 'none';
+    if (video) {
+      video.style.display = '';
+      video.crossOrigin = 'anonymous';
+      video.src = url;
+      video.load();
+      video.play().catch(() => {});
+    }
+    if (controls) controls.style.display = '';
+    if (overlay) overlay.classList.add('hidden');
+    showToast('▶ Зареждам видео...');
+    return;
+  }
+
+  if (mode === 'hls') {
+    if (iframe) iframe.style.display = 'none';
+    if (video) video.style.display = '';
+    if (controls) controls.style.display = '';
+    if (overlay) overlay.classList.add('hidden');
+
+    // Native HLS (Safari, iOS)
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      video.load();
+      video.play().catch(() => {});
+      showToast('▶ HLS поток...');
+      return;
+    }
+    // hls.js for everyone else
+    try {
+      const Hls = await cinemaLoadHlsLib();
+      if (Hls.isSupported()) {
+        cinemaHlsInstance = new Hls({ enableWorker: true, lowLatencyMode: false });
+        cinemaHlsInstance.loadSource(url);
+        cinemaHlsInstance.attachMedia(video);
+        cinemaHlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+        cinemaHlsInstance.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) showToast('HLS грешка: ' + (data.details || 'unknown'));
+        });
+        showToast('▶ HLS поток...');
+      } else { showToast('HLS не се поддържа в този браузър'); }
+    } catch (e) {
+      showToast('hls.js не зареди: ' + e.message);
+    }
+    return;
+  }
+
+  // iframe mode
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); video.style.display = 'none'; }
+  if (controls) controls.style.display = 'none';
+  if (overlay) overlay.classList.add('hidden');
+  if (iframe) {
+    iframe.style.display = '';
+    iframe.src = 'about:blank';
+
+    // X-Frame-Options check via load timing
+    let loaded = false;
+    const onLoad = () => { loaded = true; };
+    iframe.addEventListener('load', onLoad, { once: true });
+    iframe.src = url;
+
+    setTimeout(() => {
+      iframe.removeEventListener('load', onLoad);
+      if (!loaded) cinemaShowIframeFallback(rawUrl);
+    }, 6000);
+
+    showToast('▶ Зареждам ' + (new URL(url).hostname.replace(/^www\./, '')));
+  }
+}
+
+function cinemaShowIframeFallback(originalUrl) {
+  const viewport = document.getElementById('cinemaViewport');
+  const iframe = document.getElementById('cinemaIframe');
+  if (!viewport) return;
+  viewport.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
+
+  const fb = document.createElement('div');
+  fb.className = 'cinema-iframe-fallback';
+  fb.innerHTML = `
+    <div class="ico">🚫</div>
+    <div class="title">Сайтът блокира вграждане</div>
+    <div class="sub">Този източник не позволява да се пуска вътре в DocOS заради DRM или security. Отвори го в нов прозорец и гледай там.</div>
+    <a class="open-btn" href="${escHtml(originalUrl)}" target="_blank" rel="noopener noreferrer">↗ Отвори в нов прозорец</a>
+  `;
+  viewport.appendChild(fb);
+  if (iframe) iframe.style.display = 'none';
 }
 
 function cinemaRemoveFromPlaylist(idx) {
@@ -6933,6 +7166,20 @@ function initCinemaControls() {
   // File inputs
   if (loadBtn) loadBtn.addEventListener('click', () => document.getElementById('cinemaFileInput')?.click());
   if (subBtn) subBtn.addEventListener('click', () => document.getElementById('cinemaSubInput')?.click());
+
+  // URL paste
+  const urlBtn = document.getElementById('cinemaLoadUrlBtn');
+  if (urlBtn) urlBtn.addEventListener('click', cinemaOpenUrlModal);
+  document.getElementById('cinemaUrlClose')?.addEventListener('click', cinemaCloseUrlModal);
+  document.getElementById('cinemaUrlGo')?.addEventListener('click', () => {
+    const inp = document.getElementById('cinemaUrlInput');
+    const url = (inp?.value || '').trim();
+    if (!url) { showToast('Постави линк първо'); return; }
+    cinemaPlayUrl(url);
+  });
+  document.getElementById('cinemaUrlInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('cinemaUrlGo')?.click();
+  });
 
   document.getElementById('cinemaFileInput')?.addEventListener('change', (e) => {
     if (e.target.files?.length) cinemaAddFiles(e.target.files);

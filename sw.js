@@ -1,4 +1,4 @@
-const DOCOS_SHELL_CACHE = 'docos-shell-v24';
+const DOCOS_SHELL_CACHE = 'docos-shell-v25';
 const DOCOS_RUNTIME_CACHE = 'docos-runtime-v8';
 const DOCOS_CACHE_PREFIXES = ['docos-shell-', 'docos-runtime-'];
 
