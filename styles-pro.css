@@ -27,24 +27,34 @@
   --pro-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ── Ambient aurora background ───────────────────────────── */
+/* ── Locked iOS-style background ─────────────────────────── */
+/* Static, no animation, no movement, no heavy blur — GPU-light, rock-solid */
+html, body {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: 100vw;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: pan-y;
+}
 body {
   background: var(--pro-bg-0) !important;
-  position: relative;
-  overflow-x: hidden;
 }
 body::before {
   content: "";
   position: fixed;
-  inset: -20%;
+  inset: 0;
   z-index: -2;
   background:
-    radial-gradient(60% 50% at 18% 10%, rgba(212, 168, 67, 0.18), transparent 60%),
-    radial-gradient(55% 45% at 88% 30%, rgba(95, 200, 255, 0.10), transparent 60%),
-    radial-gradient(70% 60% at 50% 100%, rgba(138, 123, 255, 0.10), transparent 60%);
-  filter: blur(40px);
-  animation: pro-aurora 22s ease-in-out infinite alternate;
+    radial-gradient(50% 40% at 20% 12%, rgba(212, 168, 67, 0.14), transparent 65%),
+    radial-gradient(45% 38% at 85% 28%, rgba(95, 200, 255, 0.08), transparent 65%),
+    radial-gradient(60% 50% at 50% 95%, rgba(138, 123, 255, 0.09), transparent 65%),
+    linear-gradient(180deg, #0a0e1a 0%, #050811 100%);
   pointer-events: none;
+  /* No animation, no transform — static like iOS wallpaper */
+  transform: none !important;
+  animation: none !important;
 }
 body::after {
   content: "";
@@ -52,15 +62,10 @@ body::after {
   inset: 0;
   z-index: -1;
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.03) 1px, transparent 0);
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.025) 1px, transparent 0);
   background-size: 22px 22px;
   pointer-events: none;
-  opacity: 0.5;
-}
-@keyframes pro-aurora {
-  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
-  50%  { transform: translate3d(2%, -1%, 0) rotate(2deg); }
-  100% { transform: translate3d(-2%, 1%, 0) rotate(-2deg); }
+  opacity: 0.4;
 }
 
 /* ── Topbar — glass + gold brand ─────────────────────────── */
@@ -826,9 +831,10 @@ html[data-chameleon="on"] #themeToggleBtn::after {
   filter: drop-shadow(0 0 6px rgba(0,0,0,0.5));
 }
 
-/* Aurora background hue-cycles too */
+/* Aurora background — locked, no movement; chameleon only tints UI accents, not the bg */
 html[data-chameleon="on"] body::before {
-  animation: pro-aurora 22s ease-in-out infinite alternate, pro-cham-hue-bg 14s linear infinite;
+  animation: none !important;
+  transform: none !important;
 }
 
 /* Apply hue-rotate to all gold/accent elements */
@@ -880,15 +886,16 @@ html[data-chameleon="on"] .dash-action-btn:nth-child(4) { animation-delay: -4.5s
 
 /* ── Strong chameleon overrides — actual gradient colors morph ── */
 
-/* Whole-page aurora — five color blobs from four independent rotors */
+/* Whole-page aurora — five color blobs, NO transform animation (locked) */
 html[data-chameleon="on"] body::before {
   background:
-    radial-gradient(55% 45% at 12% 8%,   hsla(var(--pro-h),  95%, 60%, 0.38), transparent 60%),
-    radial-gradient(50% 40% at 92% 18%,  hsla(var(--pro-h2), 95%, 60%, 0.32), transparent 60%),
-    radial-gradient(60% 50% at 50% 55%,  hsla(var(--pro-h3), 95%, 62%, 0.28), transparent 60%),
-    radial-gradient(55% 45% at 88% 88%,  hsla(var(--pro-h4), 95%, 60%, 0.30), transparent 60%),
-    radial-gradient(50% 40% at 8% 92%,   hsla(calc(var(--pro-h) + 60deg), 95%, 60%, 0.28), transparent 60%) !important;
-  animation: pro-aurora 18s ease-in-out infinite alternate !important;
+    radial-gradient(55% 45% at 12% 8%,   hsla(var(--pro-h),  95%, 60%, 0.32), transparent 60%),
+    radial-gradient(50% 40% at 92% 18%,  hsla(var(--pro-h2), 95%, 60%, 0.28), transparent 60%),
+    radial-gradient(60% 50% at 50% 55%,  hsla(var(--pro-h3), 95%, 62%, 0.24), transparent 60%),
+    radial-gradient(55% 45% at 88% 88%,  hsla(var(--pro-h4), 95%, 60%, 0.26), transparent 60%),
+    radial-gradient(50% 40% at 8% 92%,   hsla(calc(var(--pro-h) + 60deg), 95%, 60%, 0.24), transparent 60%) !important;
+  animation: none !important;
+  transform: none !important;
   opacity: 1;
 }
 
