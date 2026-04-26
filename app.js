@@ -1440,25 +1440,81 @@ function generateVideoThumbDataUrl(file, seekTime = 1.0) {
   });
 }
 
+// Read a File via FileReader (iOS-compatible alternative to file.arrayBuffer())
+function fileToArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(fr.error || new Error('FileReader failed'));
+    fr.readAsArrayBuffer(file);
+  });
+}
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(fr.error || new Error('FileReader failed'));
+    fr.readAsDataURL(file);
+  });
+}
+
 async function persistUploadedFile(file, ownerPrefix = 'asset', displayFileName = '') {
   const blobKey = makeBlobKey(ownerPrefix);
   const safeFileName = cleanupImportedFileName(displayFileName || file.name || 'Документ');
   const mimeType = file.type || guessMimeType(safeFileName || '', 'application/octet-stream');
-  await putAssetRecord({
-    id: blobKey,
-    blob: file,
-    fileName: safeFileName || 'Документ',
-    mimeType,
-    size: file.size || 0,
-    createdAt: new Date().toISOString()
-  });
+
+  // STRATEGY: try IndexedDB with progressively more iOS-friendly blob forms.
+  // If everything fails, fall back to inline base64 data URL in the doc record.
+  let storedInIdb = false;
+  let inlineDataUrl = '';
+
+  try {
+    // Attempt 1: pass File directly (works on most platforms)
+    await putAssetRecord({
+      id: blobKey, blob: file, fileName: safeFileName, mimeType,
+      size: file.size || 0, createdAt: new Date().toISOString()
+    });
+    storedInIdb = true;
+  } catch (e1) {
+    console.warn('IDB attempt 1 (File) failed:', e1?.message);
+    try {
+      // Attempt 2: arrayBuffer() → fresh Blob (handles iOS structured-clone bug)
+      const buf = await file.arrayBuffer();
+      const fresh = new Blob([buf], { type: mimeType });
+      await putAssetRecord({
+        id: blobKey, blob: fresh, fileName: safeFileName, mimeType,
+        size: file.size || 0, createdAt: new Date().toISOString()
+      });
+      storedInIdb = true;
+    } catch (e2) {
+      console.warn('IDB attempt 2 (arrayBuffer) failed:', e2?.message);
+      try {
+        // Attempt 3: FileReader.readAsArrayBuffer (some iOS versions need this)
+        const buf = await fileToArrayBuffer(file);
+        const fresh = new Blob([buf], { type: mimeType });
+        await putAssetRecord({
+          id: blobKey, blob: fresh, fileName: safeFileName, mimeType,
+          size: file.size || 0, createdAt: new Date().toISOString()
+        });
+        storedInIdb = true;
+      } catch (e3) {
+        console.warn('IDB attempt 3 (FileReader) failed:', e3?.message);
+        // Final fallback: store as inline data URL in the doc record (no IndexedDB)
+        // Only if file fits a sane budget (~25MB encoded → ~33MB data URL)
+        if ((file.size || 0) > 8 * 1024 * 1024) {
+          throw new Error(`Файлът е твърде голям за inline съхранение (${formatBytes(file.size)}). IndexedDB не работи в този браузър.`);
+        }
+        inlineDataUrl = await fileToDataUrl(file);
+        console.info('Stored as inline data URL (no IDB)');
+      }
+    }
+  }
 
   let previewDataUrl = '';
   if (mimeType.startsWith('image/')) {
-    // Persistent data:URL thumbnail (survives reload, unlike blob:// URLs)
     previewDataUrl = await generateImageThumbDataUrl(file).catch(() => '');
-    // Fallback to live object URL if thumb generation fails
-    if (!previewDataUrl) previewDataUrl = await getObjectUrlForBlobKey(blobKey, file);
+    if (!previewDataUrl && storedInIdb) previewDataUrl = await getObjectUrlForBlobKey(blobKey, file).catch(() => '');
+    if (!previewDataUrl && inlineDataUrl) previewDataUrl = inlineDataUrl;
   } else if (mimeType === 'application/pdf') {
     previewDataUrl = await generatePdfThumbDataUrlFromBlob(file).catch(() => '');
   } else if (mimeType.startsWith('video/')) {
@@ -1466,7 +1522,8 @@ async function persistUploadedFile(file, ownerPrefix = 'asset', displayFileName 
   }
 
   return {
-    blobKey,
+    blobKey: storedInIdb ? blobKey : '',
+    inlineDataUrl,
     fileMime: mimeType,
     fileSize: Number(file.size) || 0,
     previewDataUrl
@@ -4612,6 +4669,7 @@ async function directFolderUpload(files, folderId) {
         previewDataUrl: persisted.previewDataUrl || '',
         docType: analysis.docType || '',
         blobKey: persisted.blobKey,
+        inlineDataUrl: persisted.inlineDataUrl || '',
         fileMime: persisted.fileMime,
         fileSize: persisted.fileSize,
         extractedText: '',
