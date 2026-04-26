@@ -1,4 +1,4 @@
-const DOCOS_SHELL_CACHE = 'docos-shell-v34';
+const DOCOS_SHELL_CACHE = 'docos-shell-v35';
 const DOCOS_RUNTIME_CACHE = 'docos-runtime-v8';
 const DOCOS_CACHE_PREFIXES = ['docos-shell-', 'docos-runtime-'];
 
@@ -52,13 +52,26 @@ async function putIfValid(cacheName, request, response) {
 }
 
 async function shellCacheFirst(request) {
+  // Network-first for shell — always try the network so deploys land instantly.
+  // Cache is only used as offline fallback. Saves users from "I deployed but
+  // user still sees old code" cache-trap.
   const cache = await caches.open(DOCOS_SHELL_CACHE);
-  const cached = await cache.match(request);
-  if (cached) return cached;
-
-  const response = await fetch(request);
-  await putIfValid(DOCOS_SHELL_CACHE, request, response.clone());
-  return response;
+  try {
+    const fresh = await fetch(request, { cache: 'no-store' });
+    if (fresh && fresh.ok) {
+      putIfValid(DOCOS_SHELL_CACHE, request, fresh.clone()).catch(() => {});
+      return fresh;
+    }
+    // 4xx/5xx → fall back to cache
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    return fresh;
+  } catch (_) {
+    // Offline → cache fallback
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error('offline-no-cache');
+  }
 }
 
 async function runtimeStaleWhileRevalidate(request) {

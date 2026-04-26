@@ -4542,6 +4542,8 @@ async function processBulkUpload(files, contextFolderId = null) {
     showToast('⏳ Изчакай текущото качване');
     return;
   }
+  // Immediate visible feedback — user knows the upload started
+  showToast(`⏳ Качвам ${fileList.length} ${fileList.length === 1 ? 'файл' : 'файла'}...`);
 
   const useFastBackground = !!contextFolderId || fileList.length >= BULK_FAST_MODE_MIN_FILES;
   runtimeBatchBusy = true;
@@ -4576,11 +4578,14 @@ async function processBulkUpload(files, contextFolderId = null) {
       if (err?.code === 'duplicate' || /Дубликат/i.test(err?.message || '')) {
         runtimeBatchSummary.duplicates += 1;
       } else {
+        console.error('DocOS file upload failed:', file.name, err);
         const failedItem = makeFailedQueueItem(file, contextFolderId, err?.message || 'Неуспешно локално запазване', batchId);
         state.intakeQueue = state.intakeQueue || [];
         state.intakeQueue.push(failedItem);
         saveState();
         runtimeBatchSummary.failed += 1;
+        // Surface the specific reason so the user knows what's wrong
+        showToast(`❌ ${file.name}: ${err?.message || 'грешка'}`, 4500);
       }
     }
     await new Promise(resolve => setTimeout(resolve, 0));
