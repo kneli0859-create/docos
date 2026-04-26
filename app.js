@@ -7416,6 +7416,8 @@ function initCinemaControls() {
       if (!swiping || e.touches.length !== 1 || !video.duration) return;
       const dx = e.touches[0].clientX - swipeStartX;
       if (Math.abs(dx) < 20) return;
+      // Block iOS from rubber-banding the page when seeking horizontally
+      if (e.cancelable) e.preventDefault();
       // 200px swipe = 30s seek
       const seekAmount = (dx / 200) * 30;
       const newTime = Math.max(0, Math.min(video.duration, swipeStartTime + seekAmount));
@@ -7426,7 +7428,7 @@ function initCinemaControls() {
       } else if (diff < 0) {
         showSeekIndicator(seekLeftEl, `${diff}s`);
       }
-    }, { passive: true });
+    }, { passive: false });
 
     viewport.addEventListener('touchend', () => { swiping = false; }, { passive: true });
   }
@@ -7490,7 +7492,29 @@ function initCinemaControls() {
 ═══════════════════════════════════════════════ */
 
 
+function lockHorizontalScroll() {
+  // iOS Safari occasionally shifts the page horizontally when the keyboard appears
+  // or after touch swipes inside iframes. Force scrollX back to 0 on every scroll.
+  const reset = () => {
+    if (window.scrollX !== 0 || window.pageXOffset !== 0) {
+      window.scrollTo(0, window.scrollY);
+    }
+    if (document.documentElement.scrollLeft !== 0) document.documentElement.scrollLeft = 0;
+    if (document.body.scrollLeft !== 0) document.body.scrollLeft = 0;
+  };
+  reset();
+  window.addEventListener('scroll', reset, { passive: true });
+  document.addEventListener('focusin', () => setTimeout(reset, 80));
+  document.addEventListener('focusout', () => setTimeout(reset, 80));
+  window.addEventListener('orientationchange', () => setTimeout(reset, 200));
+  window.addEventListener('resize', reset, { passive: true });
+  // Belt-and-suspenders: tick every 800ms for the first 3s after load
+  let ticks = 0;
+  const id = setInterval(() => { reset(); if (++ticks > 4) clearInterval(id); }, 800);
+}
+
 async function init() {
+  lockHorizontalScroll();
   initViewportCssSync();
   loadState();
   await openAssetDb().catch(err => {

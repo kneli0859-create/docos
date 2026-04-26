@@ -107,24 +107,30 @@ button { background: none; border: none; cursor: pointer; color: inherit; font-f
 input, select, textarea { font-family: inherit; }
 a { color: var(--accent); }
 
-/* ---------- App Shell ---------- */
+/* ---------- App Shell ----------
+   Bulletproof centering: position:fixed + left:50% + translateX(-50%)
+   ensures the app stays mathematically centered regardless of any iOS Safari
+   keyboard/scroll/transform glitches that previously shifted it left/right. */
 #app {
   display: flex;
   flex-direction: column;
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
   bottom: 0;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  -webkit-transform: translateX(-50%);
   width: 100%;
   max-width: 430px;
   height: 100%;
-  margin: 0 auto;
+  height: 100dvh;
   overflow: hidden;
   background: var(--bg);
   contain: layout paint style;
   isolation: isolate;
   -webkit-backface-visibility: hidden;
+  will-change: auto;
 }
 
 
