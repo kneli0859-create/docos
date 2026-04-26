@@ -62,11 +62,11 @@
     });
   }
   function getDeviceId() {
-    var id = localStorage.getItem(LS_DEVICE_ID);
-    if (!id) {
-      id = uuid();
-      localStorage.setItem(LS_DEVICE_ID, id);
-    }
+    return localStorage.getItem(LS_DEVICE_ID) || null;
+  }
+  function createNewDeviceId() {
+    var id = uuid();
+    localStorage.setItem(LS_DEVICE_ID, id);
     return id;
   }
   function setDeviceId(newId) {
@@ -217,6 +217,7 @@
 
   async function openPanel() {
     ensureUi();
+    if (!deviceId) { showFirstRunModal(); return; }
     renderPanel();
     $('docosCloudBackdrop').classList.add('cloud-backdrop--show');
     $('docosCloudPanel').classList.add('cloud-panel--show');
@@ -327,12 +328,53 @@
     return ret;
   };
 
-  // ── Boot ────────────────────────────────────────────────
-  function boot() {
-    deviceId = getDeviceId();
-    ensureUi();
+  // ── First-run modal (when no device key exists) ─────────
+  function showFirstRunModal() {
+    if ($('docosFirstRun')) return;
+    var m = document.createElement('div');
+    m.id = 'docosFirstRun';
+    m.className = 'cloud-firstrun';
+    m.innerHTML =
+      '<div class="cloud-firstrun-card">' +
+        '<div class="cloud-firstrun-ico">☁️</div>' +
+        '<div class="cloud-firstrun-title">Облачна памет</div>' +
+        '<div class="cloud-firstrun-sub">Първо отваряне в този браузър. Избери:</div>' +
+        '<button class="cloud-btn cloud-btn--primary" id="docosFirstRunNew">🆕 Ново устройство — създай ключ</button>' +
+        '<div class="cloud-firstrun-or">— или —</div>' +
+        '<div class="cloud-firstrun-blurb">Имаш ключ от друг браузър/телефон? Постави го тук и веднага синхронизираш всичко:</div>' +
+        '<input type="text" id="docosFirstRunKey" class="cloud-input" placeholder="постави ключа тук" style="font-family:monospace;font-size:.78em"/>' +
+        '<button class="cloud-btn" id="docosFirstRunRestore" style="margin-top:8px">🔗 Свържи към съществуващия ми облак</button>' +
+      '</div>';
+    document.body.appendChild(m);
+
+    $('docosFirstRunNew').addEventListener('click', function () {
+      deviceId = createNewDeviceId();
+      m.remove();
+      toast('☁️ Облакът активиран', 'ok');
+      startSync();
+    });
+    $('docosFirstRunRestore').addEventListener('click', async function () {
+      var k = ($('docosFirstRunKey').value || '').trim();
+      if (!k) { toast('Постави ключ първо', 'warn'); return; }
+      if (!setDeviceId(k)) return;
+      this.disabled = true; this.textContent = 'Свързвам...';
+      await initClient();
+      var ret = await sb.from('docos_state').select('state').eq('user_id', deviceId).maybeSingle();
+      if (ret.error || !ret.data || !ret.data.state) {
+        toast('Няма архив за този ключ', 'err');
+        localStorage.removeItem(LS_DEVICE_ID);
+        deviceId = null;
+        this.disabled = false; this.textContent = '🔗 Свържи към съществуващия ми облак';
+        return;
+      }
+      writeLocalState(ret.data.state);
+      toast('📥 Свързан — рестартирам...', 'ok');
+      setTimeout(function () { location.reload(); }, 1000);
+    });
+  }
+
+  function startSync() {
     initClient().then(function () {
-      // First-run: try to pull existing state if local is empty
       var local = readLocalState();
       if (Object.keys(local).length === 0) {
         sb.from('docos_state').select('state').eq('user_id', deviceId).maybeSingle().then(function (r) {
@@ -343,9 +385,19 @@
           }
         }).catch(function () {});
       }
-      // Initial push to ensure cloud is current
       if (autosync) schedulePush(3000);
     }).catch(function (e) { console.warn('[cloud init]', e); });
+  }
+
+  // ── Boot ────────────────────────────────────────────────
+  function boot() {
+    deviceId = getDeviceId();
+    ensureUi();
+    if (!deviceId) {
+      showFirstRunModal();
+    } else {
+      startSync();
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
