@@ -8,9 +8,10 @@
    1. CONSTANTS & CONFIG
 ═══════════════════════════════════════════════ */
 
-const APP_VERSION = '4.5.0';
+const APP_VERSION = '5.0.0';
 const LS_KEY = 'docos_v3';
 const THEMES = [
+  { id: 'matrix',       label: 'Matrix',  color: '#00ff41' },
   { id: 'black-blue',   label: 'Синя',    color: '#3B82F6' },
   { id: 'black-yellow', label: 'Жълта',   color: '#EAB308' },
   { id: 'black-red',    label: 'Червена', color: '#EF4444' },
@@ -3499,12 +3500,147 @@ function renderCalendar() {
 function startClock() {
   updateClock();
   renderCalendar();
+  renderHackerStack();
   processDueReminders();
-  setInterval(updateClock, 1000);
+  setInterval(() => { updateClock(); renderHackerLiveBits(); }, 1000);
   setInterval(() => {
     renderCalendar();
+    renderHackerStack();
     processDueReminders();
   }, 30000);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   HACKER STACK — terminal widgets on top of dashboard
+   - SYSTEM_STATUS: live time / date / uptime / device id tail
+   - CLOUD_MEMORY_GRID: docs/folders/pending/used + cloud sync state
+   - UPGRADE_SLOTS: module status grid (online/offline/reserved)
+   ════════════════════════════════════════════════════════════════ */
+
+const HK_SESSION_START = Date.now();
+
+function _hkFmtUptime(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+function _hkTimeAgo(ts) {
+  if (!ts) return 'никога';
+  const s = (Date.now() - ts) / 1000;
+  if (s < 60) return Math.floor(s) + 'с';
+  if (s < 3600) return Math.floor(s / 60) + 'м';
+  if (s < 86400) return Math.floor(s / 3600) + 'ч';
+  return Math.floor(s / 86400) + 'д';
+}
+
+function renderHackerLiveBits() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  const t = document.getElementById('hkTime');       if (t) t.textContent = `${hh}:${mm}:${ss}`;
+  const d = document.getElementById('hkDate');       if (d) d.textContent = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${now.getFullYear()}`;
+  const u = document.getElementById('hkUptime');     if (u) u.textContent = _hkFmtUptime(Date.now() - HK_SESSION_START);
+  const ls = document.getElementById('hkLastSync');
+  if (ls) {
+    const lastSync = parseInt(localStorage.getItem('docos_cloud_last_sync') || '0', 10);
+    ls.textContent = lastSync ? `${_hkTimeAgo(lastSync)} ago` : 'никога';
+  }
+}
+
+function renderHackerStack() {
+  renderHackerLiveBits();
+
+  // Device identity
+  const deviceKey = localStorage.getItem('docos_cloud_device_id') || '—';
+  const tail = deviceKey === '—' ? '—' : deviceKey.slice(-6).toUpperCase();
+  const devEl = document.getElementById('hkDevice'); if (devEl) devEl.textContent = `#${tail}`;
+  const dkEl  = document.getElementById('hkDeviceKey');
+  if (dkEl) dkEl.textContent = deviceKey === '—' ? '—' : deviceKey.replace(/-/g,'').slice(0, 8) + '…' + deviceKey.slice(-4);
+
+  // Cloud memory grid: numbers from getStorageMetrics
+  let metrics = null;
+  try { metrics = getStorageMetrics(); } catch (_) { metrics = null; }
+  if (metrics) {
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setText('hkDocs',    metrics.docsCount);
+    setText('hkFolders', metrics.foldersCount);
+    setText('hkPending', metrics.pendingCount);
+    setText('hkUsed',    formatBytes(metrics.usedBytes));
+    setText('hkMemPct',  `${metrics.localPct.toFixed(1)}%`);
+    setText('hkMemFree', `${formatBytes(metrics.freeBytes)} free`);
+    const fill = document.getElementById('hkMemFill');
+    if (fill) fill.style.width = `${Math.max(metrics.localPct, metrics.usedBytes ? 1 : 0)}%`;
+  }
+
+  // Cloud host
+  const hostEl = document.getElementById('hkCloudHost');
+  if (hostEl) hostEl.textContent = 'supabase / dlbnjiomldlijbshxysh';
+
+  // Autosync state
+  const auto = localStorage.getItem('docos_cloud_autosync') !== '0';
+  const aEl = document.getElementById('hkAutosync');
+  if (aEl) aEl.textContent = auto ? 'ON' : 'OFF';
+
+  // PIN secured?
+  const pinSet = !!localStorage.getItem('docos_pin_hash');
+  const sEl = document.getElementById('hkSecure');
+  if (sEl) sEl.textContent = pinSet ? 'PIN ✓' : 'OPEN';
+  const cloudLed = document.getElementById('hkCloudLed');
+  if (cloudLed) cloudLed.className = 'hk-led ' + (auto ? 'ok' : 'warn');
+  const sysLed = document.getElementById('hkSysLed');
+  if (sysLed) sysLed.className = 'hk-led ' + (pinSet ? 'ok' : 'warn');
+
+  // Upgrade slots — modules
+  renderHackerModules({ pinSet, autosync: auto, docsCount: metrics ? metrics.docsCount : 0 });
+}
+
+function renderHackerModules(ctx) {
+  const grid = document.getElementById('hkModulesGrid');
+  if (!grid) return;
+  const mods = [
+    { id: '01', name: 'OCR_AGENT',     state: 'online' },
+    { id: '02', name: 'CLOUD_SYNC',    state: ctx.autosync ? 'online' : 'offline' },
+    { id: '03', name: 'CINEMA',        state: 'online' },
+    { id: '04', name: 'PIN_LOCK',      state: ctx.pinSet ? 'online' : 'offline' },
+    { id: '05', name: 'AI_TAGGER',     state: 'reserved' },
+    { id: '06', name: 'WHATSAPP_BOT',  state: 'reserved' },
+    { id: '07', name: 'EMAIL_PARSER',  state: 'reserved' },
+    { id: '08', name: 'AUTO_RENAME',   state: 'reserved' },
+  ];
+  grid.innerHTML = mods.map(m => {
+    const lbl = m.state === 'online' ? 'ONLINE' : m.state === 'offline' ? 'OFFLINE' : 'RESERVED';
+    return `<div class="hk-mod" data-state="${m.state}" data-mod="${m.id}">
+      <span class="hk-mod-id">[${m.id}]</span>
+      <span class="hk-mod-name">${m.name}</span>
+      <span class="hk-mod-status">${lbl}</span>
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.hk-mod').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.mod;
+      if (id === '01') switchTab && switchTab('agent');
+      else if (id === '02') document.getElementById('docosCloudFab')?.click();
+      else if (id === '03') switchTab && switchTab('cinema');
+      else if (id === '04') {
+        if (typeof openPinSetup === 'function') openPinSetup();
+        else if (typeof togglePinLock === 'function') togglePinLock();
+        else switchTab && switchTab('settings');
+      }
+      else {
+        try {
+          const t = document.createElement('div');
+          t.className = 'cloud-toast cloud-toast--show';
+          t.textContent = 'Модулът е резервиран — скоро.';
+          document.body.appendChild(t);
+          setTimeout(() => t.remove(), 1800);
+        } catch (_) {}
+      }
+    });
+  });
 }
 
 /* ═══════════════════════════════════════════════
@@ -3682,6 +3818,7 @@ function renderDashboard() {
   renderDeadlines();
   renderRecentDocs();
   renderCalendar();
+  renderHackerStack();
 }
 
 function renderDashboardFolderRail() {

@@ -35,7 +35,7 @@
   <link rel="dns-prefetch" href="https://www.2embed.cc"/>
   <link rel="dns-prefetch" href="https://multiembed.mov"/>
   <link rel="dns-prefetch" href="https://player.autoembed.cc"/>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
   <link rel="manifest" href="manifest.json"/>
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
@@ -89,7 +89,7 @@
     <header class="topbar" id="topbar">
       <div class="topbar-left">
         <span class="app-logo">DocOS</span>
-        <span class="app-version" id="appVersionBadge">v4.8.0</span>
+        <span class="app-version" id="appVersionBadge">v5.0.0</span>
       </div>
       <div class="topbar-right">
         <button class="icon-btn" id="themeToggleBtn" title="Тема">🎨</button>
@@ -103,6 +103,65 @@
       <!-- DASHBOARD -->
       <section class="screen active" id="screen-dashboard">
         <div class="screen-scroll">
+
+          <!-- ════════════════════════════════════════════════════════
+               HACKER STACK — terminal-style live system widgets.
+               Visible in all themes; fully expressive in [data-theme="matrix"].
+               ════════════════════════════════════════════════════════ -->
+          <div class="hacker-stack">
+
+            <!-- SYSTEM STATUS -->
+            <div class="hacker-block hk-sys">
+              <div class="hk-header">
+                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/dashboard</span><span class="hk-dollar">$</span>
+                <span class="hk-cmd" id="hkSysCmd">status --live</span>
+                <span class="hk-led ok" id="hkSysLed" title="online"></span>
+              </div>
+              <div class="hk-grid hk-grid-4">
+                <div class="hk-cell"><span class="hk-k">TIME</span><span class="hk-v" id="hkTime">--:--:--</span></div>
+                <div class="hk-cell"><span class="hk-k">DATE</span><span class="hk-v" id="hkDate">--</span></div>
+                <div class="hk-cell"><span class="hk-k">UPTIME</span><span class="hk-v" id="hkUptime">--</span></div>
+                <div class="hk-cell"><span class="hk-k">DEVICE</span><span class="hk-v" id="hkDevice">--</span></div>
+              </div>
+            </div>
+
+            <!-- CLOUD MEMORY GRID -->
+            <div class="hacker-block hk-cloud">
+              <div class="hk-header">
+                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/cloud</span><span class="hk-dollar">$</span>
+                <span class="hk-cmd">mem --cloud --verbose</span>
+                <span class="hk-led ok" id="hkCloudLed" title="connected"></span>
+              </div>
+              <div class="hk-grid hk-grid-4">
+                <div class="hk-cell"><span class="hk-k">DOCS</span><span class="hk-v hk-big" id="hkDocs">0</span></div>
+                <div class="hk-cell"><span class="hk-k">FOLDERS</span><span class="hk-v hk-big" id="hkFolders">0</span></div>
+                <div class="hk-cell"><span class="hk-k">PENDING</span><span class="hk-v hk-big" id="hkPending">0</span></div>
+                <div class="hk-cell"><span class="hk-k">USED</span><span class="hk-v hk-big" id="hkUsed">0 B</span></div>
+              </div>
+              <div class="hk-progress">
+                <div class="hk-bar"><div class="hk-fill" id="hkMemFill" style="width:0%"></div></div>
+                <div class="hk-meta"><span id="hkMemPct">0%</span> <span class="hk-sep">·</span> <span id="hkMemFree">free —</span></div>
+              </div>
+              <div class="hk-rows">
+                <div class="hk-row"><span class="hk-k">CLOUD</span><span class="hk-v hk-trunc" id="hkCloudHost">—</span></div>
+                <div class="hk-row"><span class="hk-k">SYNC</span><span class="hk-v" id="hkLastSync">никога</span></div>
+                <div class="hk-row"><span class="hk-k">AUTOSYNC</span><span class="hk-v" id="hkAutosync">—</span></div>
+                <div class="hk-row"><span class="hk-k">SECURE</span><span class="hk-v" id="hkSecure">—</span></div>
+                <div class="hk-row"><span class="hk-k">DEVICE_KEY</span><span class="hk-v hk-trunc" id="hkDeviceKey">—</span></div>
+              </div>
+            </div>
+
+            <!-- UPGRADE SLOTS -->
+            <div class="hacker-block hk-modules">
+              <div class="hk-header">
+                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/modules</span><span class="hk-dollar">$</span>
+                <span class="hk-cmd">ls --modules</span>
+                <span class="hk-led ok"></span>
+              </div>
+              <div class="hk-modules-grid" id="hkModulesGrid"></div>
+            </div>
+
+          </div>
 
           <!-- Hero -->
           <div class="dash-hero">

@@ -4601,3 +4601,550 @@ select.dl-field-input {
   font-weight: 600;
   margin-top: 8px;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   HACKER STACK — terminal-style widgets (visible in all themes,
+   fully expressive in [data-theme="matrix"]).
+   ════════════════════════════════════════════════════════════════ */
+
+.hacker-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+.hacker-block {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 12px 14px;
+  box-shadow: var(--card-shadow);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.hk-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+  flex-wrap: wrap;
+}
+.hk-prompt { color: var(--accent); font-weight: 700; }
+.hk-colon  { color: var(--text2); }
+.hk-path   { color: var(--text2); }
+.hk-dollar { color: var(--accent); margin: 0 6px 0 2px; font-weight: 700; }
+.hk-cmd    { color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hk-led {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text3);
+  box-shadow: 0 0 0 0 var(--text3);
+  flex-shrink: 0;
+}
+.hk-led.ok {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34,197,94,0.55);
+  animation: hk-pulse 2.4s ease-in-out infinite;
+}
+.hk-led.warn { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,0.55); }
+.hk-led.err  { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.55); }
+@keyframes hk-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.85); }
+}
+
+.hk-grid {
+  display: grid;
+  gap: 6px;
+}
+.hk-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.hk-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 6px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+.hk-k {
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  color: var(--text3);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.hk-v {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hk-v.hk-big {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+}
+.hk-v.hk-trunc { font-size: 11px; color: var(--text2); }
+
+.hk-progress {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hk-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.hk-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 60%, white) 100%);
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: width 0.6s cubic-bezier(.22,.9,.25,1);
+}
+.hk-meta {
+  font-size: 10px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hk-sep { color: var(--text3); }
+
+.hk-rows {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hk-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 8px;
+  background: rgba(255,255,255,0.015);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  min-height: 26px;
+}
+.hk-row .hk-k { font-size: 9px; flex-shrink: 0; }
+.hk-row .hk-v { font-size: 11px; text-align: right; max-width: 60%; }
+
+.hk-modules-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.hk-mod {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  min-height: 56px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.hk-mod:active { transform: scale(0.97); background: rgba(255,255,255,0.04); }
+.hk-mod-id { font-size: 9px; color: var(--text3); letter-spacing: 1px; }
+.hk-mod-name { font-size: 12px; color: var(--text); font-weight: 700; letter-spacing: 0.3px; }
+.hk-mod-status { font-size: 9px; letter-spacing: 0.6px; text-transform: uppercase; font-weight: 700; }
+.hk-mod[data-state="online"]   { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.hk-mod[data-state="online"]   .hk-mod-status { color: var(--accent); }
+.hk-mod[data-state="online"]::before {
+  content: ''; position: absolute; top: 8px; right: 8px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.hk-mod[data-state="offline"]  .hk-mod-status { color: #f59e0b; }
+.hk-mod[data-state="reserved"] { opacity: 0.55; border-style: dashed; }
+.hk-mod[data-state="reserved"] .hk-mod-status { color: var(--text3); }
+
+/* ════════════════════════════════════════════════════════════════
+   MATRIX THEME — green-on-black brutalist terminal aesthetic.
+   Activated via [data-theme="matrix"]. Overrides global font, palette,
+   borders. Keeps all functionality intact.
+   ════════════════════════════════════════════════════════════════ */
+
+[data-theme="matrix"] {
+  --accent: #00ff41;
+  --accent-glow: rgba(0,255,65,0.32);
+  --accent-soft: rgba(0,255,65,0.10);
+  --border-accent: rgba(0,255,65,0.55);
+  --bg: #000000;
+  --bg2: #030503;
+  --bg3: #050a06;
+  --bg4: #07120a;
+  --bg5: #0a1a0e;
+  --border: rgba(0,255,65,0.18);
+  --text: #d3ffda;
+  --text2: #6ad07c;
+  --text3: #2f7340;
+  --glass: rgba(3,8,4,0.86);
+  --glass-border: rgba(0,255,65,0.22);
+  --card-bg: linear-gradient(145deg, rgba(2,8,4,0.95) 0%, rgba(5,15,8,0.7) 100%);
+  --card-shadow:
+    0 2px 12px rgba(0,255,65,0.06),
+    0 0 0 1px rgba(0,255,65,0.15) inset;
+  --font: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-xs: 2px;
+}
+
+/* Subtle scanline + grid overlay across the whole shell. Fixed to body so
+   it doesn't repaint on content updates. */
+[data-theme="matrix"] body::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0,255,65,0.025) 0px,
+      rgba(0,255,65,0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(ellipse at 50% 0%, rgba(0,255,65,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(0,255,65,0.04) 0%, transparent 70%),
+    #000000;
+}
+
+[data-theme="matrix"] body {
+  font-family: var(--font);
+  letter-spacing: 0.2px;
+}
+
+[data-theme="matrix"] .topbar {
+  background: rgba(0,0,0,0.92);
+  border-bottom: 1px solid var(--border-accent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+[data-theme="matrix"] .app-logo {
+  font-family: var(--font);
+  font-weight: 800;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px var(--accent-glow), 0 0 16px var(--accent-glow);
+  letter-spacing: 1px;
+}
+[data-theme="matrix"] .app-logo::before { content: '> '; color: var(--accent); }
+[data-theme="matrix"] .app-version {
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  padding: 2px 6px;
+  font-family: var(--font);
+  letter-spacing: 0.6px;
+}
+[data-theme="matrix"] .icon-btn {
+  background: rgba(0,255,65,0.04);
+  border: 1px solid var(--border);
+  border-radius: 0;
+}
+[data-theme="matrix"] .icon-btn:active {
+  background: rgba(0,255,65,0.14);
+  border-color: var(--accent);
+}
+
+/* Hero card → terminal window */
+[data-theme="matrix"] .dash-hero {
+  background: var(--card-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+[data-theme="matrix"] .dash-hero::before {
+  content: '┌─[ DOCOS://CORE ]──────────────────────────────────┐';
+  display: block;
+  font-family: var(--font);
+  font-size: 9px;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  padding: 6px 10px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0.85;
+}
+[data-theme="matrix"] .dash-hero-greeting {
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+[data-theme="matrix"] .dash-hero-greeting::before { content: '> '; }
+[data-theme="matrix"] .dash-hero-time {
+  font-family: var(--font);
+  font-weight: 800;
+  color: var(--accent);
+  text-shadow: 0 0 14px var(--accent-glow), 0 0 28px var(--accent-glow);
+  letter-spacing: -1px;
+  position: relative;
+}
+[data-theme="matrix"] .dash-hero-time::after {
+  content: '_';
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--accent);
+  animation: hk-blink 1s steps(2, end) infinite;
+}
+@keyframes hk-blink { 50% { opacity: 0; } }
+[data-theme="matrix"] .dash-hero-date {
+  font-family: var(--font);
+  color: var(--text2);
+  letter-spacing: 0.5px;
+}
+[data-theme="matrix"] .dash-hero-storage-pill {
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  font-family: var(--font);
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+[data-theme="matrix"] .dash-hero-storage-dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* Stats → 4 hard-edge data blocks */
+[data-theme="matrix"] .dash-stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  position: relative;
+}
+[data-theme="matrix"] .dash-stat-card::before {
+  content: '[ ]';
+  position: absolute;
+  top: 4px; left: 6px;
+  font-size: 8px;
+  color: var(--text3);
+  letter-spacing: 1px;
+}
+[data-theme="matrix"] .dash-stat-num {
+  color: var(--accent);
+  font-family: var(--font);
+  font-weight: 800;
+  text-shadow: 0 0 10px var(--accent-glow);
+}
+[data-theme="matrix"] .dash-stat-label {
+  font-family: var(--font);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+
+/* Storage widget → terminal data block */
+[data-theme="matrix"] .dash-storage-widget,
+[data-theme="matrix"] .dash-calendar-wrap,
+[data-theme="matrix"] .card-premium {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+}
+[data-theme="matrix"] .dash-storage-label,
+[data-theme="matrix"] .section-title {
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+[data-theme="matrix"] .section-title::before { content: '// '; opacity: 0.7; }
+[data-theme="matrix"] .dash-storage-bar { background: rgba(0,255,65,0.06); }
+[data-theme="matrix"] .dash-storage-bar-fill {
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 50%, white));
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+[data-theme="matrix"] .dash-storage-health {
+  font-family: var(--font);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Quick actions → terminal-style buttons */
+[data-theme="matrix"] .dash-action-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+}
+[data-theme="matrix"] .dash-action-btn:active {
+  background: rgba(0,255,65,0.08);
+  border-color: var(--accent);
+}
+[data-theme="matrix"] .dash-action-text {
+  font-family: var(--font);
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* Calendar → hard grid */
+[data-theme="matrix"] .calendar-mini { font-family: var(--font); }
+[data-theme="matrix"] .calendar-mini-day,
+[data-theme="matrix"] .cal-day {
+  border-radius: 0 !important;
+  font-family: var(--font);
+}
+[data-theme="matrix"] .calendar-mini-day.today,
+[data-theme="matrix"] .cal-day.today {
+  background: var(--accent) !important;
+  color: #000 !important;
+  font-weight: 800;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Hacker stack — full neon glow in matrix */
+[data-theme="matrix"] .hacker-block {
+  background: rgba(0,3,1,0.9);
+  border: 1px solid var(--border-accent);
+  box-shadow:
+    0 0 0 1px rgba(0,255,65,0.06) inset,
+    0 0 18px rgba(0,255,65,0.04);
+  border-radius: var(--radius-sm);
+}
+[data-theme="matrix"] .hacker-block::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: -1px; right: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+  opacity: 0.5;
+}
+[data-theme="matrix"] .hk-cell {
+  background: rgba(0,255,65,0.025);
+  border: 1px solid var(--border);
+  border-radius: 0;
+}
+[data-theme="matrix"] .hk-row {
+  background: rgba(0,255,65,0.02);
+  border: 1px solid var(--border);
+  border-radius: 0;
+}
+[data-theme="matrix"] .hk-mod {
+  background: rgba(0,255,65,0.02);
+  border: 1px solid var(--border);
+  border-radius: 0;
+}
+[data-theme="matrix"] .hk-mod[data-state="online"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(0,255,65,0.15) inset;
+}
+[data-theme="matrix"] .hk-bar { border-radius: 0; }
+
+/* Folders/recent docs → boxes */
+[data-theme="matrix"] .dash-folder-rail .folder-rail-item,
+[data-theme="matrix"] .recent-docs-list .doc-item,
+[data-theme="matrix"] .doc-list .doc-item,
+[data-theme="matrix"] .folder-grid .folder-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+}
+
+/* Bottom dock → terminal taskbar */
+[data-theme="matrix"] .bottom-dock {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,1) 100%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-top: 1px solid var(--accent);
+  box-shadow: 0 -4px 24px rgba(0,255,65,0.08);
+}
+[data-theme="matrix"] .bottom-dock::after { display: none; }
+[data-theme="matrix"] .dock-btn {
+  border-radius: 0;
+  font-family: var(--font);
+}
+[data-theme="matrix"] .dock-label,
+[data-theme="matrix"] .dock-btn-label {
+  font-family: var(--font);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+[data-theme="matrix"] .dock-btn.active {
+  background: rgba(0,255,65,0.10);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(0,255,65,0.18) inset;
+}
+
+/* Buttons & inputs */
+[data-theme="matrix"] button,
+[data-theme="matrix"] input,
+[data-theme="matrix"] select,
+[data-theme="matrix"] textarea {
+  font-family: var(--font);
+}
+[data-theme="matrix"] .filter-chip,
+[data-theme="matrix"] .link-btn {
+  border-radius: 0;
+  font-family: var(--font);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+[data-theme="matrix"] .filter-chip.active {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+[data-theme="matrix"] .search-input {
+  background: rgba(0,255,65,0.03);
+  border: 1px solid var(--border-accent);
+  border-radius: 0;
+  font-family: var(--font);
+  color: var(--text);
+}
+[data-theme="matrix"] .search-input::placeholder { color: var(--text3); }
+
+/* Toasts in matrix */
+[data-theme="matrix"] .cloud-toast {
+  background: rgba(0,0,0,0.96);
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  font-family: var(--font);
+  color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+  letter-spacing: 0.5px;
+}
+
+/* Theme swatches list — make matrix one stand out */
+.theme-swatch[data-theme="matrix"] {
+  background: linear-gradient(135deg, #000 0%, #003a0e 100%) !important;
+  border: 1px solid #00ff41 !important;
+  box-shadow: 0 0 10px rgba(0,255,65,0.35) !important;
+}
+
