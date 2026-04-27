@@ -1237,14 +1237,18 @@ a { color: var(--accent); }
 .doc-institution { font-size: 0.68rem; color: var(--text2); }
 .doc-date { font-size: 0.65rem; color: var(--text3); }
 .confidence-badge {
-  font-size: 0.6rem;
+  position: relative;
+  font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.2px;
   border-radius: 4px;
-  padding: 1px 5px;
+  padding: 2px 6px;
+  white-space: nowrap;
 }
-.confidence-badge.high { background: rgba(34,197,94,0.15); color: #22C55E; }
-.confidence-badge.medium { background: rgba(245,158,11,0.15); color: #F59E0B; }
-.confidence-badge.low { background: rgba(239,68,68,0.15); color: #EF4444; }
+.confidence-badge:empty { display: none; }
+.confidence-badge.high { background: rgba(34,197,94,0.2); color: #22C55E; }
+.confidence-badge.medium { background: rgba(234,179,8,0.2); color: #EAB308; }
+.confidence-badge.low { display: none; }
 .doc-status { font-size: 0.65rem; }
 .doc-status.pending { color: var(--warning); }
 .doc-status.saved { color: var(--success); }

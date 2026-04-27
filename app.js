@@ -2996,9 +2996,9 @@ function confidenceLevel(score) {
 }
 
 function confidenceLabel(score) {
-  if (score >= 70) return score + '% ✓';
-  if (score >= 40) return score + '% ~';
-  return score + '% ?';
+  if (score >= 70) return 'AI ✓';
+  if (score >= 40) return 'AI: ниска точност';
+  return '';
 }
 
 function percentOf(part, total) {
