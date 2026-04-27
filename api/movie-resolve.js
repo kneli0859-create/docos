@@ -24,19 +24,25 @@ function send(res, code, body) {
 function buildEmbeds(imdbId, season, episode) {
   if (season && episode) {
     return [
-      { name: 'VidSrc', url: `https://vidsrc.to/embed/tv/${imdbId}/${season}/${episode}` },
-      { name: 'VidSrc.xyz', url: `https://vidsrc.xyz/embed/tv?imdb=${imdbId}&season=${season}&episode=${episode}` },
       { name: '2Embed', url: `https://www.2embed.cc/embedtv/${imdbId}&s=${season}&e=${episode}` },
+      { name: 'AutoEmbed', url: `https://player.autoembed.cc/embed/tv/${imdbId}/${season}/${episode}` },
+      { name: 'Videasy', url: `https://player.videasy.net/tv/${imdbId}/${season}/${episode}` },
       { name: 'MultiEmbed', url: `https://multiembed.mov/?video_id=${imdbId}&tmdb=0&s=${season}&e=${episode}` },
-      { name: 'AutoEmbed', url: `https://player.autoembed.cc/embed/tv/${imdbId}/${season}/${episode}` }
+      { name: 'VidSrc.xyz', url: `https://vidsrc.xyz/embed/tv?imdb=${imdbId}&season=${season}&episode=${episode}` },
+      { name: 'VidSrc', url: `https://vidsrc.to/embed/tv/${imdbId}/${season}/${episode}` },
+      { name: 'Smashy', url: `https://embed.smashystream.com/playere.php?tmdb=${imdbId}&season=${season}&episode=${episode}` },
+      { name: 'SuperEmbed', url: `https://multiembed.mov/directstream.php?video_id=${imdbId}&tmdb=0&s=${season}&e=${episode}` }
     ];
   }
   return [
-    { name: 'VidSrc', url: `https://vidsrc.to/embed/movie/${imdbId}` },
-    { name: 'VidSrc.xyz', url: `https://vidsrc.xyz/embed/movie?imdb=${imdbId}` },
     { name: '2Embed', url: `https://www.2embed.cc/embed/${imdbId}` },
+    { name: 'AutoEmbed', url: `https://player.autoembed.cc/embed/movie/${imdbId}` },
+    { name: 'Videasy', url: `https://player.videasy.net/movie/${imdbId}` },
     { name: 'MultiEmbed', url: `https://multiembed.mov/?video_id=${imdbId}&tmdb=0` },
-    { name: 'AutoEmbed', url: `https://player.autoembed.cc/embed/movie/${imdbId}` }
+    { name: 'VidSrc.xyz', url: `https://vidsrc.xyz/embed/movie?imdb=${imdbId}` },
+    { name: 'VidSrc', url: `https://vidsrc.to/embed/movie/${imdbId}` },
+    { name: 'Smashy', url: `https://embed.smashystream.com/playere.php?imdb=${imdbId}` },
+    { name: 'SuperEmbed', url: `https://multiembed.mov/directstream.php?video_id=${imdbId}&tmdb=0` }
   ];
 }
 

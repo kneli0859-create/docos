@@ -7269,6 +7269,7 @@ async function cinemaPlayUrl(rawUrl) {
   cinemaShowBar(rawUrl);
   cinemaShowIframeLoader('Зареждам ' + (new URL(url).hostname.replace(/^www\./, '')) + '...');
 
+  cinemaApplyIframeHardening(iframe);
   iframe.style.display = '';
   iframe.src = 'about:blank';
 
@@ -7389,6 +7390,42 @@ function cinemaUpdateBarForResolved(originalUrl) {
   }
 }
 
+// Global postMessage listener — embeds occasionally signal real playback
+if (typeof window !== 'undefined' && !window.__cinemaPlaybackMsgBound) {
+  window.__cinemaPlaybackMsgBound = true;
+  window.addEventListener('message', (e) => {
+    const d = e && e.data;
+    if (!d) return;
+    const ev = (typeof d === 'string') ? d : (d.event || d.type || '');
+    if (typeof ev === 'string' && /^(play|playing|started|playback|video_play)$/i.test(ev)) {
+      cinemaSetPlayingMode(true);
+    }
+  }, false);
+}
+
+function cinemaApplyIframeHardening(iframe) {
+  if (!iframe) return;
+  // Block popup ads + top-navigation; allow scripts/forms/presentation needed by players.
+  iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
+  iframe.setAttribute('allowfullscreen', 'true');
+  iframe.setAttribute('referrerpolicy', 'no-referrer');
+  iframe.setAttribute('loading', 'eager');
+}
+
+function cinemaIframeLooksAlive(iframe) {
+  // Cross-origin iframes will throw when accessing contentDocument — that's a strong signal
+  // the embed actually navigated and rendered. Same-origin "about:blank" reads as ~0 height.
+  try {
+    const doc = iframe.contentDocument;
+    if (!doc) return true; // cross-origin → assume alive
+    const h = doc.documentElement?.scrollHeight || doc.body?.scrollHeight || 0;
+    return h > 100;
+  } catch (_) {
+    return true; // SecurityError = cross-origin = real third-party doc loaded
+  }
+}
+
 function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
   const iframe = document.getElementById('cinemaIframe');
   if (!iframe) return;
@@ -7396,28 +7433,40 @@ function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
   if (!provider) { cinemaSetPlayingMode(false); return; }
 
   cinemaShowIframeLoader('Зареждам ' + provider.name + '...');
+  cinemaApplyIframeHardening(iframe);
   iframe.style.display = '';
   iframe.src = 'about:blank';
 
   let didLoad = false;
-  const onLoad = () => { didLoad = true; cinemaHideIframeLoader(); cinemaSetPlayingMode(true); };
+  let confirmedAlive = false;
+
+  const onLoad = () => {
+    didLoad = true;
+    cinemaHideIframeLoader();
+    // Don't trust load alone; verify after a short settle window.
+    setTimeout(() => {
+      if (cinemaIframeLooksAlive(iframe)) {
+        confirmedAlive = true;
+        cinemaSetPlayingMode(true);
+      }
+    }, 3000);
+  };
   iframe.addEventListener('load', onLoad, { once: true });
   requestAnimationFrame(() => { iframe.src = provider.url; });
 
   setTimeout(() => {
     iframe.removeEventListener('load', onLoad);
-    if (!didLoad) {
+    if (didLoad && confirmedAlive) return;
+    const exhausted = attemptCount + 1 >= cinemaEmbedProviders.length;
+    if (!exhausted && cinemaEmbedProviders.length > 1) {
       const next = (idx + 1) % cinemaEmbedProviders.length;
-      const exhausted = attemptCount + 1 >= cinemaEmbedProviders.length;
-      if (!exhausted && cinemaEmbedProviders.length > 1) {
-        cinemaEmbedIdx = next;
-        cinemaUpdateBarForResolved(document.getElementById('cinemaBarOpen')?.href || '#');
-        cinemaLoadEmbedAtIdx(next, attemptCount + 1);
-      } else {
-        cinemaHideIframeLoader();
-        cinemaSetPlayingMode(false);
-        cinemaShowIframeFallback(document.getElementById('cinemaBarOpen')?.href || '#');
-      }
+      cinemaEmbedIdx = next;
+      cinemaUpdateBarForResolved(document.getElementById('cinemaBarOpen')?.href || '#');
+      cinemaLoadEmbedAtIdx(next, attemptCount + 1);
+    } else {
+      cinemaHideIframeLoader();
+      cinemaSetPlayingMode(false);
+      cinemaShowIframeFallback(document.getElementById('cinemaBarOpen')?.href || '#');
     }
   }, 9000);
 }
