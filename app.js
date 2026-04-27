@@ -1005,7 +1005,10 @@ function saveState() {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(buildPersistableStateSnapshot()));
   } catch (e) {
-    showToast('⚠️ Грешка при запис');
+    const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || /quota/i.test(e.message || ''));
+    console.warn('DocOS saveState failed:', e?.name || '', e?.message || e);
+    if (isQuota) showToast('⚠️ Локалната памет е пълна. Изтрий стари файлове.', 5000);
+    else showToast('⚠️ Грешка при запис');
   }
 }
 
@@ -1357,8 +1360,22 @@ async function migrateLegacyInlineDataToIndexedDb() {
   if (changed) saveState();
 }
 
-function generateImageThumbDataUrl(file, maxSide = 1080) {
-  return new Promise((resolve, reject) => {
+function generateImageThumbDataUrl(file, maxSide = 320) {
+  const drawAndEncode = (source, w, h) => {
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(source, 0, 0, tw, th);
+    return canvas.toDataURL('image/jpeg', 0.72);
+  };
+
+  const tryImage = () => new Promise((resolve, reject) => {
     if (!file || !file.type || !file.type.startsWith('image/')) return reject(new Error('not an image'));
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -1368,23 +1385,7 @@ function generateImageThumbDataUrl(file, maxSide = 1080) {
         const w = img.naturalWidth || img.width;
         const h = img.naturalHeight || img.height;
         if (!w || !h) throw new Error('zero dimensions');
-        // Account for retina screens: render at devicePixelRatio scaled max
-        const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
-        const targetMax = Math.min(maxSide * dpr, Math.max(w, h));
-        const scale = Math.min(1, targetMax / Math.max(w, h));
-        const tw = Math.max(1, Math.round(w * scale));
-        const th = Math.max(1, Math.round(h * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = tw;
-        canvas.height = th;
-        const ctx = canvas.getContext('2d');
-        // High-quality scaling
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, tw, th);
-        // Use jpeg for photos (much smaller), png for transparency formats
-        const usePng = (file.type === 'image/png' || file.type === 'image/gif');
-        const data = canvas.toDataURL(usePng ? 'image/png' : 'image/jpeg', 0.92);
+        const data = drawAndEncode(img, w, h);
         URL.revokeObjectURL(url);
         resolve(data);
       } catch (e) {
@@ -1395,6 +1396,25 @@ function generateImageThumbDataUrl(file, maxSide = 1080) {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
     img.src = url;
     setTimeout(() => { URL.revokeObjectURL(url); reject(new Error('image thumb timeout')); }, 12000);
+  });
+
+  const tryBitmap = async () => {
+    if (typeof createImageBitmap !== 'function') throw new Error('createImageBitmap unsupported');
+    const bmp = await createImageBitmap(file);
+    try {
+      return drawAndEncode(bmp, bmp.width, bmp.height);
+    } finally {
+      if (bmp.close) bmp.close();
+    }
+  };
+
+  return tryImage().catch(async (e1) => {
+    try {
+      return await tryBitmap();
+    } catch (e2) {
+      const reason = `${e1?.message || e1} | bitmap: ${e2?.message || e2}`;
+      throw new Error(reason);
+    }
   });
 }
 
@@ -1423,9 +1443,9 @@ function generateVideoThumbDataUrl(file, seekTime = 1.0) {
         const canvas = document.createElement('canvas');
         const w = video.videoWidth || 320;
         const h = video.videoHeight || 240;
-        const scale = Math.min(160 / w, 200 / h, 1);
-        canvas.width = Math.round(w * scale);
-        canvas.height = Math.round(h * scale);
+        const scale = Math.min(320 / Math.max(w, h), 1);
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
@@ -1517,14 +1537,17 @@ async function persistUploadedFile(file, ownerPrefix = 'asset', displayFileName 
   }
 
   let previewDataUrl = '';
+  const thumbWarn = (kind, err) => {
+    console.warn(`DocOS thumb [${kind}] failed for "${safeFileName}" (${mimeType}, ${formatBytes(file.size || 0)}):`, err?.message || err);
+  };
   if (mimeType.startsWith('image/')) {
-    previewDataUrl = await generateImageThumbDataUrl(file).catch(() => '');
-    if (!previewDataUrl && storedInIdb) previewDataUrl = await getObjectUrlForBlobKey(blobKey, file).catch(() => '');
+    previewDataUrl = await generateImageThumbDataUrl(file).catch(err => { thumbWarn('image', err); return ''; });
+    if (!previewDataUrl && storedInIdb) previewDataUrl = await getObjectUrlForBlobKey(blobKey, file).catch(err => { thumbWarn('image-blobkey', err); return ''; });
     if (!previewDataUrl && inlineDataUrl) previewDataUrl = inlineDataUrl;
   } else if (mimeType === 'application/pdf') {
-    previewDataUrl = await generatePdfThumbDataUrlFromBlob(file).catch(() => '');
+    previewDataUrl = await generatePdfThumbDataUrlFromBlob(file).catch(err => { thumbWarn('pdf', err); return ''; });
   } else if (mimeType.startsWith('video/')) {
-    previewDataUrl = await generateVideoThumbDataUrl(file).catch(() => '');
+    previewDataUrl = await generateVideoThumbDataUrl(file).catch(err => { thumbWarn('video', err); return ''; });
   }
 
   return {
@@ -2670,8 +2693,8 @@ async function renderPdfPageToCanvas(blob, { pageNumber = 1, maxWidth = 900 } = 
 
 async function generatePdfThumbDataUrlFromBlob(blob) {
   try {
-    const { canvas } = await renderPdfPageToCanvas(blob, { maxWidth: 240 });
-    return canvas.toDataURL('image/jpeg', 0.82);
+    const { canvas } = await renderPdfPageToCanvas(blob, { maxWidth: 320 });
+    return canvas.toDataURL('image/jpeg', 0.72);
   } catch (e) {
     console.warn('DocOS: PDF thumbnail generation failed', e);
     return '';
