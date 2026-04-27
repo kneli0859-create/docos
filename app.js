@@ -7087,16 +7087,64 @@ function cinemaTransformUrl(raw) {
   return { mode: 'iframe', url: raw };
 }
 
+// Resolve cache: same URL/imdb hit returns instantly on second open. 24h TTL.
+const CINEMA_RESOLVE_CACHE_LS = 'docos_cinema_resolve_v1';
+const CINEMA_RESOLVE_TTL_MS = 24 * 60 * 60 * 1000;
+const CINEMA_RESOLVE_CACHE_MAX = 30;
+
+function cinemaResolveCacheGet(key) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CINEMA_RESOLVE_CACHE_LS) || '{}');
+    const entry = all[key];
+    if (!entry) return null;
+    if (Date.now() - entry.t > CINEMA_RESOLVE_TTL_MS) return null;
+    return entry.d;
+  } catch (_) { return null; }
+}
+
+function cinemaResolveCacheSet(key, data) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CINEMA_RESOLVE_CACHE_LS) || '{}');
+    all[key] = { t: Date.now(), d: data };
+    const keys = Object.keys(all);
+    if (keys.length > CINEMA_RESOLVE_CACHE_MAX) {
+      const sorted = keys.sort((a, b) => all[a].t - all[b].t);
+      sorted.slice(0, keys.length - CINEMA_RESOLVE_CACHE_MAX).forEach(k => delete all[k]);
+    }
+    localStorage.setItem(CINEMA_RESOLVE_CACHE_LS, JSON.stringify(all));
+  } catch (_) {}
+}
+
 async function cinemaResolveMovie(rawUrl, imdbId) {
+  const cacheKey = imdbId || rawUrl;
+  const cached = cinemaResolveCacheGet(cacheKey);
+  if (cached) return cached;
+
   const params = new URLSearchParams();
   if (imdbId) params.set('imdb', imdbId);
   else params.set('url', rawUrl);
-  const r = await fetch('/api/movie-resolve?' + params.toString());
+
+  // Hard timeout — never wait forever on a slow IMDb scrape.
+  const ctrl = new AbortController();
+  const tmo = setTimeout(() => ctrl.abort(), 8000);
+  let r;
+  try {
+    r = await fetch('/api/movie-resolve?' + params.toString(), { signal: ctrl.signal });
+  } catch (e) {
+    clearTimeout(tmo);
+    throw new Error(e.name === 'AbortError' ? 'Resolve timeout (8s)' : (e.message || 'Resolve network error'));
+  }
+  clearTimeout(tmo);
+
   if (!r.ok) {
     const j = await r.json().catch(() => ({}));
     throw new Error(j.error || `Resolve failed (${r.status})`);
   }
-  return r.json();
+  const data = await r.json();
+  if (data && data.ok && data.embeds && data.embeds.length) {
+    cinemaResolveCacheSet(cacheKey, data);
+  }
+  return data;
 }
 
 let cinemaHlsInstance = null;
@@ -7175,7 +7223,25 @@ let cinemaEmbedProviders = [];
 let cinemaEmbedIdx = 0;
 let cinemaResolvedMeta = null;
 
+let cinemaPlayUrlInflight = false;
 async function cinemaPlayUrl(rawUrl) {
+  if (cinemaPlayUrlInflight) return; // double-tap guard
+  cinemaPlayUrlInflight = true;
+  // Always release the lock — even if anything inside throws.
+  setTimeout(() => { cinemaPlayUrlInflight = false; }, 30000); // hard fail-safe (30s)
+  try {
+    return await cinemaPlayUrlImpl(rawUrl);
+  } catch (e) {
+    console.warn('[cinema] play failed:', e);
+    try { cinemaHideIframeLoader(); } catch (_) {}
+    try { cinemaSetPlayingMode(false); } catch (_) {}
+    if (typeof showToast === 'function') showToast('Грешка: ' + (e.message || e));
+  } finally {
+    cinemaPlayUrlInflight = false;
+  }
+}
+
+async function cinemaPlayUrlImpl(rawUrl) {
   const { mode, url, imdbId } = cinemaTransformUrl(rawUrl);
   cinemaPushUrlHistory(rawUrl);
   cinemaCloseUrlModal();
