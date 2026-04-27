@@ -5148,3 +5148,199 @@ select.dl-field-input {
   box-shadow: 0 0 10px rgba(0,255,65,0.35) !important;
 }
 
+
+/* ════════════════════════════════════════════════════════════════
+   v5.0.1 — Compact terminal dashboard.
+   Hide old hero/stats/storage widgets (now folded into hacker stack).
+   Bulgarian-first terminal hero with huge clock.
+   ════════════════════════════════════════════════════════════════ */
+
+#screen-dashboard .dash-hero,
+#screen-dashboard .dash-stats,
+#screen-dashboard .dash-storage-widget,
+#screen-dashboard .dash-actions {
+  display: none !important;
+}
+
+/* SYSTEM_STATUS — huge clock block inside hacker block */
+.hk-clock-block {
+  text-align: center;
+  padding: 14px 8px 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed var(--border);
+  position: relative;
+}
+.hk-greeting {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+.hk-greeting::before { content: '> '; }
+.hk-clock {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-weight: 800;
+  font-size: 56px;
+  line-height: 1;
+  color: var(--accent);
+  letter-spacing: -2px;
+  text-shadow: 0 0 14px var(--accent-glow), 0 0 28px var(--accent-glow);
+  margin: 4px 0 6px;
+}
+.hk-blink {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--accent);
+  animation: hk-blink 1s steps(2, end) infinite;
+}
+.hk-clock-sub {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text2);
+  text-transform: uppercase;
+}
+
+/* Two-bar progress: local + cloud */
+.hk-progress {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hk-bar-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 88px;
+  gap: 8px;
+  align-items: center;
+}
+.hk-bar-label {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.hk-bar-meta {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  color: var(--text2);
+  text-align: right;
+  white-space: nowrap;
+}
+.hk-fill-cloud {
+  background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%) !important;
+  box-shadow: 0 0 8px rgba(56,189,248,0.45) !important;
+}
+
+/* Inline secure button */
+.hk-btn-inline {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.hk-btn-inline:active { background: var(--accent); color: #000; transform: scale(0.96); }
+.hk-row-sec.secured .hk-btn-inline { background: transparent; opacity: 0.7; }
+
+/* Quick actions hacker block */
+.hk-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.hk-quick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 70px;
+  justify-content: center;
+}
+.hk-quick-btn:active {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--accent);
+  transform: scale(0.96);
+}
+.hk-q-key {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--text3);
+  font-weight: 700;
+}
+.hk-q-ico { font-size: 22px; line-height: 1; }
+.hk-q-text {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  color: var(--text);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Compact calendar in dashboard */
+#screen-dashboard .dash-calendar-wrap {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  padding: 10px 12px 12px;
+}
+#screen-dashboard .calendar-mini {
+  gap: 2px !important;
+}
+#screen-dashboard .cal-day {
+  min-height: 28px !important;
+  font-size: 11px !important;
+  padding: 2px !important;
+}
+#screen-dashboard .cal-header-cell {
+  font-size: 9px !important;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace !important;
+  letter-spacing: 1px !important;
+  color: var(--text2) !important;
+}
+
+/* Section titles → terminal style on dashboard */
+#screen-dashboard .section-header .section-title {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+#screen-dashboard .section-header .section-title::before {
+  content: '// ';
+  opacity: 0.6;
+}
+#screen-dashboard .link-btn {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* Matrix theme tweaks for new compact layout */
+[data-theme="matrix"] .hk-clock { color: var(--accent); text-shadow: 0 0 16px var(--accent-glow), 0 0 32px var(--accent-glow); }
+[data-theme="matrix"] .hk-quick-btn { border-radius: 0; }
+[data-theme="matrix"] .hk-fill-cloud {
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 50%, white)) !important;
+  box-shadow: 0 0 8px var(--accent-glow) !important;
+}
+[data-theme="matrix"] .hk-btn-inline { border-radius: 0; }
+

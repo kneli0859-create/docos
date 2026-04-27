@@ -89,7 +89,7 @@
     <header class="topbar" id="topbar">
       <div class="topbar-left">
         <span class="app-logo">DocOS</span>
-        <span class="app-version" id="appVersionBadge">v5.0.0</span>
+        <span class="app-version" id="appVersionBadge">v5.0.1</span>
       </div>
       <div class="topbar-right">
         <button class="icon-btn" id="themeToggleBtn" title="Тема">🎨</button>
@@ -106,55 +106,83 @@
 
           <!-- ════════════════════════════════════════════════════════
                HACKER STACK — terminal-style live system widgets.
-               Visible in all themes; fully expressive in [data-theme="matrix"].
+               Compact, BG labels, all data in one brutal view.
                ════════════════════════════════════════════════════════ -->
           <div class="hacker-stack">
 
-            <!-- SYSTEM STATUS -->
+            <!-- SYSTEM STATUS — combines greeting + huge clock + system info -->
             <div class="hacker-block hk-sys">
               <div class="hk-header">
-                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/dashboard</span><span class="hk-dollar">$</span>
-                <span class="hk-cmd" id="hkSysCmd">status --live</span>
-                <span class="hk-led ok" id="hkSysLed" title="online"></span>
+                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/начало</span><span class="hk-dollar">$</span>
+                <span class="hk-cmd">status --live</span>
+                <span class="hk-led ok" id="hkSysLed"></span>
+              </div>
+              <div class="hk-clock-block">
+                <div class="hk-greeting" id="hkGreeting">ДОБЪР ДЕН</div>
+                <div class="hk-clock" id="hkClockBig">17:21<span class="hk-blink">_</span></div>
+                <div class="hk-clock-sub"><span id="hkWeekday">—</span> · <span id="hkDateLong">—</span></div>
               </div>
               <div class="hk-grid hk-grid-4">
-                <div class="hk-cell"><span class="hk-k">TIME</span><span class="hk-v" id="hkTime">--:--:--</span></div>
-                <div class="hk-cell"><span class="hk-k">DATE</span><span class="hk-v" id="hkDate">--</span></div>
+                <div class="hk-cell"><span class="hk-k">ВРЕМЕ</span><span class="hk-v" id="hkTime">--:--:--</span></div>
+                <div class="hk-cell"><span class="hk-k">ДАТА</span><span class="hk-v" id="hkDate">--</span></div>
                 <div class="hk-cell"><span class="hk-k">UPTIME</span><span class="hk-v" id="hkUptime">--</span></div>
-                <div class="hk-cell"><span class="hk-k">DEVICE</span><span class="hk-v" id="hkDevice">--</span></div>
+                <div class="hk-cell"><span class="hk-k">УСТР.</span><span class="hk-v" id="hkDevice">--</span></div>
               </div>
             </div>
 
-            <!-- CLOUD MEMORY GRID -->
+            <!-- CLOUD MEMORY — local + cloud bars + secure button -->
             <div class="hacker-block hk-cloud">
               <div class="hk-header">
-                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/cloud</span><span class="hk-dollar">$</span>
-                <span class="hk-cmd">mem --cloud --verbose</span>
-                <span class="hk-led ok" id="hkCloudLed" title="connected"></span>
+                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/памет</span><span class="hk-dollar">$</span>
+                <span class="hk-cmd">mem --status</span>
+                <span class="hk-led ok" id="hkCloudLed"></span>
               </div>
               <div class="hk-grid hk-grid-4">
-                <div class="hk-cell"><span class="hk-k">DOCS</span><span class="hk-v hk-big" id="hkDocs">0</span></div>
-                <div class="hk-cell"><span class="hk-k">FOLDERS</span><span class="hk-v hk-big" id="hkFolders">0</span></div>
-                <div class="hk-cell"><span class="hk-k">PENDING</span><span class="hk-v hk-big" id="hkPending">0</span></div>
-                <div class="hk-cell"><span class="hk-k">USED</span><span class="hk-v hk-big" id="hkUsed">0 B</span></div>
+                <div class="hk-cell"><span class="hk-k">ДОКУМЕНТИ</span><span class="hk-v hk-big" id="hkDocs">0</span></div>
+                <div class="hk-cell"><span class="hk-k">ПАПКИ</span><span class="hk-v hk-big" id="hkFolders">0</span></div>
+                <div class="hk-cell"><span class="hk-k">ОПАШКА</span><span class="hk-v hk-big" id="hkPending">0</span></div>
+                <div class="hk-cell"><span class="hk-k">ИЗПОЛЗ.</span><span class="hk-v hk-big" id="hkUsed">0 B</span></div>
               </div>
               <div class="hk-progress">
-                <div class="hk-bar"><div class="hk-fill" id="hkMemFill" style="width:0%"></div></div>
-                <div class="hk-meta"><span id="hkMemPct">0%</span> <span class="hk-sep">·</span> <span id="hkMemFree">free —</span></div>
+                <div class="hk-bar-row">
+                  <span class="hk-bar-label">ЛОКАЛНО</span>
+                  <div class="hk-bar"><div class="hk-fill" id="hkLocalFill" style="width:0%"></div></div>
+                  <span class="hk-bar-meta" id="hkLocalMeta">— / —</span>
+                </div>
+                <div class="hk-bar-row">
+                  <span class="hk-bar-label">ОБЛАК</span>
+                  <div class="hk-bar"><div class="hk-fill hk-fill-cloud" id="hkCloudFill" style="width:0%"></div></div>
+                  <span class="hk-bar-meta" id="hkCloudMeta">— / 500 MB</span>
+                </div>
               </div>
               <div class="hk-rows">
-                <div class="hk-row"><span class="hk-k">CLOUD</span><span class="hk-v hk-trunc" id="hkCloudHost">—</span></div>
-                <div class="hk-row"><span class="hk-k">SYNC</span><span class="hk-v" id="hkLastSync">никога</span></div>
-                <div class="hk-row"><span class="hk-k">AUTOSYNC</span><span class="hk-v" id="hkAutosync">—</span></div>
-                <div class="hk-row"><span class="hk-k">SECURE</span><span class="hk-v" id="hkSecure">—</span></div>
-                <div class="hk-row"><span class="hk-k">DEVICE_KEY</span><span class="hk-v hk-trunc" id="hkDeviceKey">—</span></div>
+                <div class="hk-row"><span class="hk-k">ОБЛАК</span><span class="hk-v hk-trunc" id="hkCloudHost">supabase</span></div>
+                <div class="hk-row"><span class="hk-k">ПОСЛ. СИНХ</span><span class="hk-v" id="hkLastSync">никога</span></div>
+                <div class="hk-row"><span class="hk-k">АВТО-СИНХ</span><span class="hk-v" id="hkAutosync">—</span></div>
+                <div class="hk-row hk-row-sec" id="hkSecureRow"><span class="hk-k">СИГУРНОСТ</span><span class="hk-v"><button class="hk-btn-inline" id="hkSecureBtn">ЗАЩИТИ ▶</button></span></div>
+                <div class="hk-row"><span class="hk-k">КЛЮЧ</span><span class="hk-v hk-trunc" id="hkDeviceKey">—</span></div>
               </div>
             </div>
 
-            <!-- UPGRADE SLOTS -->
+            <!-- QUICK ACTIONS — terminal-style hot keys -->
+            <div class="hacker-block hk-actions">
+              <div class="hk-header">
+                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/действия</span><span class="hk-dollar">$</span>
+                <span class="hk-cmd">exec</span>
+                <span class="hk-led ok"></span>
+              </div>
+              <div class="hk-quick-grid">
+                <button class="hk-quick-btn" id="hkQuickUpload"><span class="hk-q-key">[F1]</span><span class="hk-q-ico">📎</span><span class="hk-q-text">КАЧИ</span></button>
+                <button class="hk-quick-btn" id="hkQuickCamera"><span class="hk-q-key">[F2]</span><span class="hk-q-ico">📷</span><span class="hk-q-text">СНИМАЙ</span></button>
+                <button class="hk-quick-btn" id="hkQuickFolder"><span class="hk-q-key">[F3]</span><span class="hk-q-ico">📁</span><span class="hk-q-text">ПАПКА</span></button>
+                <button class="hk-quick-btn" id="hkQuickDeadline"><span class="hk-q-key">[F4]</span><span class="hk-q-ico">⏰</span><span class="hk-q-text">СРОК</span></button>
+              </div>
+            </div>
+
+            <!-- UPGRADE SLOTS — modules grid -->
             <div class="hacker-block hk-modules">
               <div class="hk-header">
-                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/modules</span><span class="hk-dollar">$</span>
+                <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/модули</span><span class="hk-dollar">$</span>
                 <span class="hk-cmd">ls --modules</span>
                 <span class="hk-led ok"></span>
               </div>

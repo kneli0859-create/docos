@@ -8,7 +8,7 @@
    1. CONSTANTS & CONFIG
 ═══════════════════════════════════════════════ */
 
-const APP_VERSION = '5.0.0';
+const APP_VERSION = '5.0.1';
 const LS_KEY = 'docos_v3';
 const THEMES = [
   { id: 'matrix',       label: 'Matrix',  color: '#00ff41' },
@@ -3543,10 +3543,24 @@ function renderHackerLiveBits() {
   const t = document.getElementById('hkTime');       if (t) t.textContent = `${hh}:${mm}:${ss}`;
   const d = document.getElementById('hkDate');       if (d) d.textContent = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${now.getFullYear()}`;
   const u = document.getElementById('hkUptime');     if (u) u.textContent = _hkFmtUptime(Date.now() - HK_SESSION_START);
+
+  // Big terminal clock + greeting
+  const clockBig = document.getElementById('hkClockBig');
+  if (clockBig) clockBig.innerHTML = `${hh}:${mm}<span class="hk-blink">_</span>`;
+  const greet = document.getElementById('hkGreeting');
+  if (greet) {
+    const h = now.getHours();
+    greet.textContent = h < 6 ? 'ДОБРА НОЩ' : h < 12 ? 'ДОБРО УТРО' : h < 18 ? 'ДОБЪР ДЕН' : 'ДОБЪР ВЕЧЕР';
+  }
+  const wd = document.getElementById('hkWeekday');
+  const dl = document.getElementById('hkDateLong');
+  if (wd) wd.textContent = (typeof DAYS_BG !== 'undefined' ? DAYS_BG[now.getDay()] : '');
+  if (dl) dl.textContent = `${now.getDate()} ${(typeof MONTHS_BG !== 'undefined' ? MONTHS_BG[now.getMonth()] : '')} ${now.getFullYear()}`;
+
   const ls = document.getElementById('hkLastSync');
   if (ls) {
     const lastSync = parseInt(localStorage.getItem('docos_cloud_last_sync') || '0', 10);
-    ls.textContent = lastSync ? `${_hkTimeAgo(lastSync)} ago` : 'никога';
+    ls.textContent = lastSync ? `преди ${_hkTimeAgo(lastSync)}` : 'никога';
   }
 }
 
@@ -3569,25 +3583,47 @@ function renderHackerStack() {
     setText('hkFolders', metrics.foldersCount);
     setText('hkPending', metrics.pendingCount);
     setText('hkUsed',    formatBytes(metrics.usedBytes));
-    setText('hkMemPct',  `${metrics.localPct.toFixed(1)}%`);
-    setText('hkMemFree', `${formatBytes(metrics.freeBytes)} free`);
-    const fill = document.getElementById('hkMemFill');
-    if (fill) fill.style.width = `${Math.max(metrics.localPct, metrics.usedBytes ? 1 : 0)}%`;
+
+    // LOCAL bar
+    const localFill = document.getElementById('hkLocalFill');
+    if (localFill) localFill.style.width = `${Math.max(metrics.localPct, metrics.usedBytes ? 1 : 0)}%`;
+    const localMeta = document.getElementById('hkLocalMeta');
+    if (localMeta) localMeta.textContent = `${formatBytes(metrics.usedBytes)} / ${formatBytes(metrics.localBudgetBytes)}`;
+
+    // CLOUD bar — Supabase free tier ~500MB; usage mirrors local state size
+    const CLOUD_BUDGET = 500 * 1024 * 1024;
+    const cloudPct = Math.min(100, (metrics.usedBytes / CLOUD_BUDGET) * 100);
+    const cloudFill = document.getElementById('hkCloudFill');
+    if (cloudFill) cloudFill.style.width = `${Math.max(cloudPct, metrics.usedBytes ? 1 : 0)}%`;
+    const cloudMeta = document.getElementById('hkCloudMeta');
+    if (cloudMeta) cloudMeta.textContent = `${formatBytes(metrics.usedBytes)} / 500 MB`;
   }
 
   // Cloud host
   const hostEl = document.getElementById('hkCloudHost');
-  if (hostEl) hostEl.textContent = 'supabase / dlbnjiomldlijbshxysh';
+  if (hostEl) hostEl.textContent = 'supabase / dlbnjiomld…';
 
   // Autosync state
   const auto = localStorage.getItem('docos_cloud_autosync') !== '0';
   const aEl = document.getElementById('hkAutosync');
-  if (aEl) aEl.textContent = auto ? 'ON' : 'OFF';
+  if (aEl) {
+    aEl.textContent = auto ? 'ВКЛЮЧЕНО' : 'ИЗКЛЮЧЕНО';
+    aEl.style.color = auto ? 'var(--accent)' : 'var(--warning)';
+  }
 
-  // PIN secured?
+  // PIN secured? Toggle button & row state
   const pinSet = !!localStorage.getItem('docos_pin_hash');
-  const sEl = document.getElementById('hkSecure');
-  if (sEl) sEl.textContent = pinSet ? 'PIN ✓' : 'OPEN';
+  const secRow = document.getElementById('hkSecureRow');
+  const secBtn = document.getElementById('hkSecureBtn');
+  if (secRow) secRow.classList.toggle('secured', pinSet);
+  if (secBtn) {
+    secBtn.textContent = pinSet ? 'ЗАЩИТЕНО ✓' : 'ЗАЩИТИ ▶';
+    secBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (typeof openPinSetup === 'function') openPinSetup();
+      else if (typeof switchTab === 'function') switchTab('settings');
+    };
+  }
   const cloudLed = document.getElementById('hkCloudLed');
   if (cloudLed) cloudLed.className = 'hk-led ' + (auto ? 'ok' : 'warn');
   const sysLed = document.getElementById('hkSysLed');
@@ -3611,7 +3647,7 @@ function renderHackerModules(ctx) {
     { id: '08', name: 'AUTO_RENAME',   state: 'reserved' },
   ];
   grid.innerHTML = mods.map(m => {
-    const lbl = m.state === 'online' ? 'ONLINE' : m.state === 'offline' ? 'OFFLINE' : 'RESERVED';
+    const lbl = m.state === 'online' ? 'АКТИВЕН' : m.state === 'offline' ? 'ИЗКЛ.' : 'РЕЗЕРВИРАН';
     return `<div class="hk-mod" data-state="${m.state}" data-mod="${m.id}">
       <span class="hk-mod-id">[${m.id}]</span>
       <span class="hk-mod-name">${m.name}</span>
@@ -3641,6 +3677,21 @@ function renderHackerModules(ctx) {
       }
     });
   });
+
+  // Wire quick action terminal buttons (delegate to existing dash buttons if present)
+  const wireBtn = (id, fallbackId) => {
+    const el = document.getElementById(id);
+    if (!el || el._hkWired) return;
+    el._hkWired = true;
+    el.addEventListener('click', () => {
+      const target = document.getElementById(fallbackId);
+      if (target) target.click();
+    });
+  };
+  wireBtn('hkQuickUpload',   'dashQuickUploadBtn');
+  wireBtn('hkQuickCamera',   'dashQuickCameraBtn');
+  wireBtn('hkQuickFolder',   'dashQuickFolderBtn');
+  wireBtn('hkQuickDeadline', 'dashQuickDeadlineBtn');
 }
 
 /* ═══════════════════════════════════════════════
