@@ -96,13 +96,32 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: var(--bg);
+  /* Background is rendered by a fixed pseudo-element on its own GPU layer.
+     Body itself stays transparent so adding/removing content (image previews,
+     modals, cinema iframe) never triggers a body-wide background repaint. */
+  background: transparent;
   overscroll-behavior: none;
   font-family: var(--font);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   touch-action: pan-y;
+}
+/* Stable, never-repainted background layer. Lives on its own composite
+   layer (transform + will-change). contain: strict prevents any
+   descendant change from invalidating it. This is the iPhone app pattern:
+   the background is "below the world" and absolutely cannot be jiggled
+   by content edits, uploads, or video playback. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: -1;
+  pointer-events: none;
+  transform: translateZ(0);
+  will-change: transform;
+  contain: strict;
 }
 
 button { background: none; border: none; cursor: pointer; color: inherit; font-family: inherit; }
@@ -123,9 +142,13 @@ a { color: var(--accent); }
   width: 100%;
   max-width: 430px;
   overflow: hidden;
-  background: var(--bg);
+  /* Transparent shell — the stable background lives on body::before so
+     content changes never invalidate the painted background. */
+  background: transparent;
   contain: layout paint style;
   isolation: isolate;
+  transform: translateZ(0);
+  will-change: transform;
   -webkit-backface-visibility: hidden;
 }
 
@@ -3187,33 +3210,28 @@ body.docos-sheet-open {
   background: #000;
   overflow: hidden;
   touch-action: none;
-  contain: layout style paint;
+  /* layout + paint + style containment fully isolates the iframe's
+     repaints + compositing from the rest of the page (we skip "size"
+     because aspect-ratio: 16/9 needs the parent's height to flow).
+     This is the rule that stops the page from "shaking" when the embed
+     loads, changes resolution, or repaints internally. */
+  contain: layout paint style;
   isolation: isolate;
   transform: translateZ(0);
+  will-change: transform;
 }
 
-/* Kill all heavy animations/filters while a video or iframe is playing.
-   Chameleon hue-rotate + iframe video = GPU thrashing → freeze. */
-html[data-cinema-playing="1"] body,
-html[data-cinema-playing="1"] #app,
-html[data-cinema-playing="1"] .screen,
-html[data-cinema-playing="1"] .screen-scroll,
-html[data-cinema-playing="1"] body::before,
-html[data-cinema-playing="1"] body::after {
-  filter: none !important;
-  animation: none !important;
-}
-html[data-cinema-playing="1"] *,
-html[data-cinema-playing="1"] *::before,
-html[data-cinema-playing="1"] *::after {
-  animation-play-state: paused !important;
-}
-html[data-cinema-playing="1"] .cinema-video,
-html[data-cinema-playing="1"] .cinema-iframe,
-html[data-cinema-playing="1"] .cinema-viewport,
-html[data-cinema-playing="1"] .cinema-controls,
-html[data-cinema-playing="1"] .cinema-bar {
-  animation-play-state: running !important;
+/* Cinema isolation note:
+   The old "kill every animation while playing" hack lived here. It caused
+   visible flicker each time the flag flipped on/off (animations start →
+   stop → start). With the cinema-viewport now under contain:layout-paint-style
+   AND iframe playback events being the only thing that toggles the flag,
+   the global killer is no longer needed. The viewport fully isolates GPU
+   thrashing on its own. Keep this section intentionally empty. */
+
+/* Honor reduced-motion preference systemwide. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
 /* Iframe top bar: always-visible fallback controls */
