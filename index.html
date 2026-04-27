@@ -267,12 +267,41 @@
             </button>
           </div>
 
-          <!-- Calendar Mini -->
-          <div class="dash-calendar-wrap card-premium">
-            <div class="section-header" style="padding:0;margin-bottom:.5rem">
-              <span class="section-title">Календар</span>
+          <!-- Calendar — brutal terminal style with month nav -->
+          <div class="hacker-block hk-cal" id="hkCalBlock">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/календар</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd">cal --nav</span>
+              <span class="hk-led ok"></span>
             </div>
-            <div class="calendar-mini" id="calendarMini"></div>
+            <div class="hk-cal-nav">
+              <button class="hk-cal-btn" id="hkCalPrev" aria-label="Предишен месец">◀</button>
+              <button class="hk-cal-month-btn" id="hkCalMonthBtn" aria-label="Избери месец">
+                <span class="hk-cal-month" id="hkCalMonth">—</span>
+                <span class="hk-cal-year" id="hkCalYear">—</span>
+              </button>
+              <button class="hk-cal-btn" id="hkCalNext" aria-label="Следващ месец">▶</button>
+              <button class="hk-cal-today" id="hkCalToday">ДНЕС</button>
+            </div>
+            <div class="dash-calendar-wrap" style="background:transparent;border:none;padding:0;box-shadow:none">
+              <div class="calendar-mini" id="calendarMini"></div>
+            </div>
+            <div class="hk-cal-foot">
+              <span class="hk-cal-hint">▸ Натисни дата за нов срок · 🔔 = с известие</span>
+            </div>
+          </div>
+
+          <!-- Month picker overlay -->
+          <div class="hk-month-picker" id="hkMonthPicker" style="display:none">
+            <div class="hk-month-picker-card">
+              <div class="hk-mp-header">
+                <button class="hk-cal-btn" id="hkMpPrevYear">◀</button>
+                <span class="hk-mp-year" id="hkMpYear">—</span>
+                <button class="hk-cal-btn" id="hkMpNextYear">▶</button>
+                <button class="hk-mp-close" id="hkMpClose">✕</button>
+              </div>
+              <div class="hk-mp-grid" id="hkMpGrid"></div>
+            </div>
           </div>
 
           <!-- Folders -->

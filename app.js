@@ -3468,16 +3468,40 @@ function updateClock() {
   }
 }
 
+const _hkCalState = (() => {
+  const n = new Date();
+  return { year: n.getFullYear(), month: n.getMonth() };
+})();
+
+function _hkCalGoTo(year, month) {
+  const d = new Date(year, month, 1);
+  _hkCalState.year = d.getFullYear();
+  _hkCalState.month = d.getMonth();
+  renderCalendar();
+}
+function _hkCalPrev() { _hkCalGoTo(_hkCalState.year, _hkCalState.month - 1); }
+function _hkCalNext() { _hkCalGoTo(_hkCalState.year, _hkCalState.month + 1); }
+function _hkCalToday() {
+  const n = new Date();
+  _hkCalGoTo(n.getFullYear(), n.getMonth());
+}
+
 function renderCalendar() {
   const el = document.getElementById('calendarMini');
   if (!el) return;
   const now     = new Date();
-  const year    = now.getFullYear();
-  const month   = now.getMonth();
+  const year    = _hkCalState.year;
+  const month   = _hkCalState.month;
+  const isCurMonth = (year === now.getFullYear() && month === now.getMonth());
   const today   = now.getDate();
   const first   = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const deadlineMap = getTodayDeadlineMap(year, month);
+
+  const monthEl = document.getElementById('hkCalMonth');
+  const yearEl  = document.getElementById('hkCalYear');
+  if (monthEl) monthEl.textContent = MONTHS_BG[month];
+  if (yearEl)  yearEl.textContent  = String(year);
 
   let html = DAYS_SHORT.map(d => `<div class="cal-header-cell">${d}</div>`).join('');
   for (let i = 0; i < first; i++) html += '<div class="cal-day other-month"></div>';
@@ -3485,7 +3509,7 @@ function renderCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const items = deadlineMap.get(d) || [];
-    const isToday = d === today;
+    const isToday = isCurMonth && d === today;
     const selected = isCalendarDaySelected(dateStr);
     const dots = items.slice(0,3).map(item => `<i style="background:${escHtml(item.color || '#3B82F6')}"></i>`).join('');
     const extra = items.length > 3 ? `<b>+${items.length - 3}</b>` : '';
@@ -3497,8 +3521,65 @@ function renderCalendar() {
   el.querySelectorAll('[data-cal-date]').forEach(btn => btn.addEventListener('click', () => openDeadlineFromDashboard(btn.dataset.calDate)));
 }
 
+/* Month picker overlay — taps month name to swap month/year */
+function _hkMpOpen() {
+  const wrap = document.getElementById('hkMonthPicker');
+  if (!wrap) return;
+  wrap.dataset.year = String(_hkCalState.year);
+  _hkMpRender();
+  wrap.style.display = 'flex';
+}
+function _hkMpClose() {
+  const wrap = document.getElementById('hkMonthPicker');
+  if (wrap) wrap.style.display = 'none';
+}
+function _hkMpRender() {
+  const wrap = document.getElementById('hkMonthPicker');
+  const grid = document.getElementById('hkMpGrid');
+  const yEl  = document.getElementById('hkMpYear');
+  if (!wrap || !grid || !yEl) return;
+  const y = parseInt(wrap.dataset.year, 10) || _hkCalState.year;
+  yEl.textContent = String(y);
+  const now = new Date();
+  const curY = now.getFullYear(), curM = now.getMonth();
+  grid.innerHTML = MONTHS_BG.map((m, i) => {
+    const isSel = (y === _hkCalState.year && i === _hkCalState.month);
+    const isNow = (y === curY && i === curM);
+    return `<button type="button" class="hk-mp-cell ${isSel?'sel':''} ${isNow?'now':''}" data-mp-month="${i}">${m.slice(0,3)}</button>`;
+  }).join('');
+  grid.querySelectorAll('[data-mp-month]').forEach(b => b.addEventListener('click', () => {
+    _hkCalGoTo(y, parseInt(b.dataset.mpMonth, 10));
+    _hkMpClose();
+  }));
+}
+function _hkMpYearShift(delta) {
+  const wrap = document.getElementById('hkMonthPicker');
+  if (!wrap) return;
+  const y = parseInt(wrap.dataset.year, 10) || _hkCalState.year;
+  wrap.dataset.year = String(y + delta);
+  _hkMpRender();
+}
+
+function _hkCalBindControls() {
+  const $ = (id) => document.getElementById(id);
+  const bind = (id, fn) => { const el = $(id); if (el && !el._hkBound) { el.addEventListener('click', fn); el._hkBound = true; } };
+  bind('hkCalPrev',      _hkCalPrev);
+  bind('hkCalNext',      _hkCalNext);
+  bind('hkCalToday',     _hkCalToday);
+  bind('hkCalMonthBtn',  _hkMpOpen);
+  bind('hkMpPrevYear',   () => _hkMpYearShift(-1));
+  bind('hkMpNextYear',   () => _hkMpYearShift(+1));
+  bind('hkMpClose',      _hkMpClose);
+  const wrap = $('hkMonthPicker');
+  if (wrap && !wrap._hkBound) {
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) _hkMpClose(); });
+    wrap._hkBound = true;
+  }
+}
+
 function startClock() {
   updateClock();
+  _hkCalBindControls();
   renderCalendar();
   renderHackerStack();
   processDueReminders();

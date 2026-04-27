@@ -5344,3 +5344,176 @@ select.dl-field-input {
 }
 [data-theme="matrix"] .hk-btn-inline { border-radius: 0; }
 
+
+/* ════════════════════════════════════════════
+   Calendar — terminal nav + month picker overlay
+   ════════════════════════════════════════════ */
+.hk-cal { padding-bottom: 10px; }
+.hk-cal-nav {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.hk-cal-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.hk-cal-btn:hover { background: rgba(34,197,94,0.10); border-color: var(--accent); }
+.hk-cal-btn:active { transform: scale(0.94); }
+
+.hk-cal-month-btn {
+  background: rgba(34,197,94,0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  transition: background .15s ease, border-color .15s ease;
+}
+.hk-cal-month-btn:hover { background: rgba(34,197,94,0.12); border-color: var(--accent); }
+.hk-cal-month {
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--text);
+  text-transform: uppercase;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hk-cal-year {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hk-cal-today {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, transparent), transparent);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0 10px;
+  height: 30px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  transition: background .15s ease, transform .1s ease;
+}
+.hk-cal-today:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+.hk-cal-today:active { transform: scale(0.94); }
+
+.hk-cal-foot {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.hk-cal-hint {
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 0.2px;
+}
+
+/* Month picker overlay */
+.hk-month-picker {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.hk-month-picker-card {
+  background: var(--card-bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  width: min(320px, 100%);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 24px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.hk-mp-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border);
+}
+.hk-mp-year {
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent);
+  font-size: 14px;
+}
+.hk-mp-close {
+  background: rgba(239,68,68,0.10);
+  border: 1px solid rgba(239,68,68,0.45);
+  color: #ef4444;
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.hk-mp-close:hover { background: rgba(239,68,68,0.22); }
+.hk-mp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.hk-mp-cell {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 4px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.hk-mp-cell:hover { background: rgba(34,197,94,0.12); border-color: var(--accent); }
+.hk-mp-cell:active { transform: scale(0.95); }
+.hk-mp-cell.sel {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hk-mp-cell.now::after {
+  content: '•';
+  margin-left: 4px;
+  color: var(--accent);
+}
+
+/* Matrix theme — sharper edges */
+[data-theme="matrix"] .hk-cal-btn,
+[data-theme="matrix"] .hk-cal-month-btn,
+[data-theme="matrix"] .hk-cal-today,
+[data-theme="matrix"] .hk-mp-cell,
+[data-theme="matrix"] .hk-mp-close,
+[data-theme="matrix"] .hk-month-picker-card { border-radius: 0; }
