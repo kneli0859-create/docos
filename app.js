@@ -7115,6 +7115,145 @@ function cinemaLoadHlsLib() {
 function cinemaSetPlayingMode(on) {
   if (on) document.documentElement.dataset.cinemaPlaying = '1';
   else delete document.documentElement.dataset.cinemaPlaying;
+  if (on) {
+    document.querySelector('.cinema-source-next')?.classList.remove('pulse');
+  }
+}
+
+function cinemaIsPlaying() {
+  return document.documentElement.dataset.cinemaPlaying === '1';
+}
+
+let cinemaPulseTimer = null;
+function cinemaArmPulseTimer() {
+  if (cinemaPulseTimer) clearTimeout(cinemaPulseTimer);
+  cinemaPulseTimer = setTimeout(() => {
+    if (!cinemaIsPlaying()) {
+      document.querySelector('.cinema-source-next')?.classList.add('pulse');
+    }
+  }, 8000);
+}
+
+function cinemaRemoveSourceBar() {
+  document.querySelector('.cinema-source-bar')?.remove();
+  if (cinemaPulseTimer) { clearTimeout(cinemaPulseTimer); cinemaPulseTimer = null; }
+}
+
+function cinemaUpdateSourceBar(originalUrl) {
+  const viewport = document.getElementById('cinemaViewport');
+  if (!viewport) return;
+  const meta = cinemaResolvedMeta || {};
+  const providers = cinemaEmbedProviders || [];
+  const cur = providers[cinemaEmbedIdx] || null;
+  const total = providers.length;
+  const idxLabel = total ? `${cinemaEmbedIdx + 1}/${total}` : '';
+  const titleStr = meta.title || (() => { try { return new URL(originalUrl).hostname.replace(/^www\./, ''); } catch (_) { return 'Видео'; } })();
+  const yearStr = meta.year ? ` (${escHtml(String(meta.year))})` : '';
+  const providerStr = cur ? `Източник: ${escHtml(cur.name)}${idxLabel ? ' · ' + idxLabel : ''}` : '';
+
+  let bar = viewport.querySelector('.cinema-source-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'cinema-source-bar';
+    bar.innerHTML = `
+      <div class="cinema-source-info">
+        <span class="cinema-source-title"></span>
+        <span class="cinema-source-provider"></span>
+      </div>
+      <div class="cinema-source-actions">
+        <button type="button" class="cinema-source-btn cinema-source-next">⏭ Друг източник</button>
+        <button type="button" class="cinema-source-btn cinema-source-external">🔗 Външно</button>
+        <button type="button" class="cinema-source-btn cinema-source-close">✕</button>
+      </div>
+    `;
+    viewport.appendChild(bar);
+
+    bar.querySelector('.cinema-source-next').addEventListener('click', () => {
+      const t = cinemaEmbedProviders.length;
+      if (!t) return;
+      const next = (cinemaEmbedIdx + 1) % t;
+      if (next === 0 && cinemaEmbedIdx === t - 1) {
+        showToast('Опитах всички. Опитай външно.');
+      }
+      cinemaEmbedIdx = next;
+      cinemaSetPlayingMode(false);
+      cinemaLoadEmbedAtIdx(next);
+    });
+    bar.querySelector('.cinema-source-external').addEventListener('click', () => {
+      const cur2 = cinemaEmbedProviders[cinemaEmbedIdx];
+      if (cur2 && cur2.url) {
+        window.open(cur2.url, '_blank', 'noopener,noreferrer');
+        showToast('Отварям в нов tab');
+      }
+    });
+    bar.querySelector('.cinema-source-close').addEventListener('click', () => {
+      cinemaRemoveSourceBar();
+      cinemaStopUrl();
+    });
+  }
+
+  bar.querySelector('.cinema-source-title').innerHTML = `▶ ${escHtml(titleStr)}${yearStr}`;
+  bar.querySelector('.cinema-source-provider').textContent = providerStr;
+}
+
+function cinemaShowAllProvidersFailedOverlay(data) {
+  cinemaSetPlayingMode(false);
+  document.querySelector('.cinema-fallback-overlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'cinema-fallback-overlay';
+  const title = (data && data.title) || 'Филм';
+  const year = data && data.year ? ` (${data.year})` : '';
+  const imdb = data && data.imdbId || '';
+  const embeds = (data && Array.isArray(data.embeds)) ? data.embeds : (cinemaEmbedProviders || []);
+
+  const externalLinks = embeds.slice(0, 4).map(e =>
+    `<button class="fb-btn fb-btn-primary" data-url="${escHtml(e.url || '')}">▶ Отвори ${escHtml(e.name || e.provider || 'източник')} в нов прозорец</button>`
+  ).join('');
+
+  const yr = data && data.year ? String(data.year) : '';
+  const searchQuery = encodeURIComponent(`${title} ${yr} watch online`.trim());
+  const ytQuery = encodeURIComponent(`${title} ${yr} trailer`.trim());
+
+  overlay.innerHTML = `
+    <div class="fb-backdrop"></div>
+    <div class="fb-content">
+      <div class="fb-icon">🛡</div>
+      <div class="fb-title">Не намерихме работещ източник</div>
+      <div class="fb-subtitle">iOS Safari блокира някои външни плеъри</div>
+
+      <div class="fb-movie-card">
+        <div class="fb-movie-title">"${escHtml(title)}${escHtml(year)}"</div>
+        ${imdb ? `<div class="fb-movie-meta">IMDB: ${escHtml(imdb)}</div>` : ''}
+      </div>
+
+      <div class="fb-section-label">Опитай ръчно:</div>
+      ${externalLinks}
+
+      <div class="fb-section-label">Или потърси:</div>
+      <button class="fb-btn fb-btn-secondary" data-url="https://www.google.com/search?q=${searchQuery}">🔍 Google</button>
+      <button class="fb-btn fb-btn-secondary" data-url="https://www.youtube.com/results?search_query=${ytQuery}">🔍 YouTube</button>
+
+      <button class="fb-btn fb-btn-cancel" data-close="1">✕ Затвори</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  const close = () => {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 220);
+  };
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target.classList.contains('fb-backdrop')) { close(); return; }
+    const btn = e.target.closest('[data-url], [data-close]');
+    if (!btn) return;
+    if (btn.dataset.url) {
+      window.open(btn.dataset.url, '_blank', 'noopener,noreferrer');
+    }
+    close();
+  });
 }
 
 function cinemaShowBar(rawUrl) {
@@ -7154,6 +7293,8 @@ function cinemaStopUrl() {
   if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
   if (controls) controls.style.display = '';
   viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
+  cinemaRemoveSourceBar();
+  document.querySelector('.cinema-fallback-overlay')?.remove();
   cinemaHideIframeLoader();
   cinemaHideBar();
   cinemaSetPlayingMode(false);
@@ -7339,13 +7480,13 @@ async function cinemaPlayResolved(rawUrl, imdbIdHint) {
     data = await cinemaResolveMovie(rawUrl, imdbIdHint);
   } catch (e) {
     cinemaHideIframeLoader();
-    cinemaShowIframeFallback(rawUrl);
+    cinemaShowAllProvidersFailedOverlay({ title: rawUrl, embeds: [] });
     showToast('Не намерих филма: ' + e.message);
     return;
   }
   if (!data || !data.ok || !data.embeds || !data.embeds.length) {
     cinemaHideIframeLoader();
-    cinemaShowIframeFallback(rawUrl);
+    cinemaShowAllProvidersFailedOverlay(data || { title: rawUrl, embeds: [] });
     showToast('IMDb не върна резултат');
     return;
   }
@@ -7437,6 +7578,10 @@ function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
   iframe.style.display = '';
   iframe.src = 'about:blank';
 
+  cinemaEmbedIdx = idx;
+  cinemaUpdateSourceBar(document.getElementById('cinemaBarOpen')?.href || '#');
+  cinemaArmPulseTimer();
+
   let didLoad = false;
   let confirmedAlive = false;
 
@@ -7466,7 +7611,7 @@ function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
     } else {
       cinemaHideIframeLoader();
       cinemaSetPlayingMode(false);
-      cinemaShowIframeFallback(document.getElementById('cinemaBarOpen')?.href || '#');
+      cinemaShowAllProvidersFailedOverlay(cinemaResolvedMeta || { embeds: cinemaEmbedProviders });
     }
   }, 9000);
 }
