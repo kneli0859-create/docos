@@ -4383,3 +4383,67 @@ select.dl-field-input {
   color-scheme: dark;
   cursor: pointer;
 }
+
+/* ============================================================
+   LONG-PRESS ACTION SHEET (delete / rename / preview)
+   ============================================================ */
+.long-press-active {
+  transform: scale(0.95);
+  opacity: 0.7;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.doc-action-sheet {
+  position: fixed; inset: 0; z-index: 9995;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.doc-action-sheet.visible { opacity: 1; pointer-events: auto; }
+
+.doc-action-sheet .action-sheet-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.doc-action-sheet .action-sheet-content {
+  position: absolute; left: 12px; right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  background: rgba(28, 28, 30, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 14px;
+  padding: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+  transform: translateY(20px);
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.doc-action-sheet.visible .action-sheet-content { transform: translateY(0); }
+
+.doc-action-sheet .action-sheet-title {
+  font-size: 13px; color: rgba(255,255,255,0.6);
+  padding: 12px 16px 6px;
+  text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.doc-action-sheet .action-sheet-btn {
+  background: rgba(255,255,255,0.06);
+  border: none;
+  color: #fff;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  min-height: 48px;
+}
+.doc-action-sheet .action-sheet-btn:active { background: rgba(255,255,255,0.12); }
+.doc-action-sheet .action-sheet-danger { color: #ff453a; }
+.doc-action-sheet .action-sheet-cancel {
+  margin-top: 4px;
+  background: rgba(255,255,255,0.1);
+  text-align: center;
+  font-weight: 600;
+}

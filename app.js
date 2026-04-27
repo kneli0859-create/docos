@@ -3799,6 +3799,7 @@ function renderRecentDocs() {
   el.innerHTML = recent.map(d => docItemHTML(d)).join('');
   el.querySelectorAll('.doc-item').forEach(item => {
     item.addEventListener('click', () => openDocPreview(item.dataset.docid));
+    attachLongPressActions(item);
   });
 }
 
@@ -4110,6 +4111,7 @@ function renderDocList() {
   }
   el.querySelectorAll('.doc-item, .gallery-item').forEach(item => {
     item.addEventListener('click', () => openDocPreview(item.dataset.docid));
+    attachLongPressActions(item);
   });
 }
 
@@ -4281,6 +4283,7 @@ function renderFolderDetail() {
       .map(d => docItemHTML(d)).join('');
     listEl.querySelectorAll('.doc-item').forEach(item => {
       item.addEventListener('click', () => openDocPreview(item.dataset.docid));
+      attachLongPressActions(item);
     });
   }
 }
@@ -7845,6 +7848,144 @@ async function init() {
 
   queueMicrotask(() => {
     warmExternalRuntimeCache().catch(() => refreshRuntimeCacheTruth().catch(() => {}));
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   LONG-PRESS ACTION SHEET (delete / rename / preview)
+═══════════════════════════════════════════════ */
+
+function attachLongPressActions(rootEl, getDocId) {
+  if (!rootEl || rootEl.__longPressBound) return;
+  rootEl.__longPressBound = true;
+
+  let pressTimer = null;
+  let pressed = false;
+  let triggered = false;
+  let startX = 0, startY = 0;
+  const HOLD_MS = 500;
+  const MOVE_THRESHOLD = 10;
+
+  const cancel = () => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    if (pressed) {
+      rootEl.classList.remove('long-press-active');
+      pressed = false;
+    }
+  };
+
+  const onStart = (e) => {
+    triggered = false;
+    const t = e.touches ? e.touches[0] : e;
+    startX = t.clientX; startY = t.clientY;
+    pressed = true;
+    rootEl.classList.add('long-press-active');
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      rootEl.classList.remove('long-press-active');
+      pressed = false;
+      triggered = true;
+      try { if (navigator.vibrate) navigator.vibrate(50); } catch (_) {}
+      const docId = typeof getDocId === 'function' ? getDocId(e) : rootEl.dataset.docid;
+      if (docId) openDocActionSheet(docId);
+    }, HOLD_MS);
+  };
+
+  const onMove = (e) => {
+    if (!pressed) return;
+    const t = e.touches ? e.touches[0] : e;
+    if (Math.abs(t.clientX - startX) > MOVE_THRESHOLD ||
+        Math.abs(t.clientY - startY) > MOVE_THRESHOLD) {
+      cancel();
+    }
+  };
+
+  // Suppress the click that follows a successful long-press so we don't also open preview
+  rootEl.addEventListener('click', (e) => {
+    if (triggered) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      triggered = false;
+    }
+  }, true);
+
+  rootEl.addEventListener('touchstart', onStart, { passive: true });
+  rootEl.addEventListener('touchmove', onMove, { passive: true });
+  rootEl.addEventListener('touchend', cancel, { passive: true });
+  rootEl.addEventListener('touchcancel', cancel, { passive: true });
+  rootEl.addEventListener('mousedown', onStart);
+  rootEl.addEventListener('mousemove', onMove);
+  rootEl.addEventListener('mouseup', cancel);
+  rootEl.addEventListener('mouseleave', cancel);
+}
+
+function rerenderAfterDocChange() {
+  try { renderDashboard?.(); } catch (_) {}
+  try { renderRecentDocs?.(); } catch (_) {}
+  if (state.currentTab === 'documents') { try { renderDocuments?.(); } catch (_) {} }
+  if (state.currentFolderId) { try { renderFolderDetail?.(); } catch (_) {} }
+  try { renderAgentTab?.(); } catch (_) {}
+  try { renderMoreTab?.(); } catch (_) {}
+}
+
+function openDocActionSheet(docId) {
+  const doc = state.documents.find(d => d.id === docId);
+  if (!doc) return;
+
+  const sheet = document.createElement('div');
+  sheet.className = 'doc-action-sheet';
+  const titleStr = doc.title || doc.originalFileName || doc.cleanFileName || 'Документ';
+  sheet.innerHTML = `
+    <div class="action-sheet-backdrop"></div>
+    <div class="action-sheet-content" role="dialog" aria-modal="true">
+      <div class="action-sheet-title">${escHtml(titleStr)}</div>
+      <button class="action-sheet-btn" data-action="preview">👁 Преглед</button>
+      <button class="action-sheet-btn" data-action="rename">✏️ Преименувай</button>
+      <button class="action-sheet-btn action-sheet-danger" data-action="delete">🗑 Изтрий</button>
+      <button class="action-sheet-btn action-sheet-cancel" data-action="cancel">Отказ</button>
+    </div>
+  `;
+  document.body.appendChild(sheet);
+  requestAnimationFrame(() => sheet.classList.add('visible'));
+
+  const close = () => {
+    sheet.classList.remove('visible');
+    setTimeout(() => sheet.remove(), 220);
+  };
+
+  sheet.addEventListener('click', (e) => {
+    if (e.target.classList.contains('action-sheet-backdrop')) { close(); return; }
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    close();
+
+    if (action === 'preview') {
+      openDocPreview(docId);
+    } else if (action === 'rename') {
+      const current = doc.title || doc.originalFileName || '';
+      const next = prompt('Ново име:', current);
+      if (next === null) return;
+      const trimmed = next.trim();
+      if (!trimmed || trimmed === current) return;
+      doc.title = trimmed;
+      doc.updatedAt = new Date().toISOString();
+      saveState();
+      rerenderAfterDocChange();
+      showToast('✓ Преименуван');
+    } else if (action === 'delete') {
+      openConfirm('Изтриване на документ', `Сигурен ли си, че искаш да изтриеш "${titleStr}"? Това действие не може да се отмени.`, async () => {
+        const blobKey = doc.blobKey;
+        state.documents = state.documents.filter(d => d.id !== docId);
+        saveState();
+        if (blobKey) {
+          try { await deleteBlobIfOrphaned(blobKey, { excludeDocId: docId }); } catch (_) {}
+        }
+        try { await refreshStorageEstimate(true); } catch (_) {}
+        rerenderAfterDocChange();
+        showToast('🗑 Изтрит');
+      });
+    }
   });
 }
 
