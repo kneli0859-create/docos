@@ -331,26 +331,38 @@
             </button>
           </div>
 
-          <!-- Queue -->
-          <div class="section-header">
-            <span class="section-title">Опашка</span>
-            <button class="link-btn" id="dashGoScanBtn">Виж</button>
+          <!-- Queue — terminal section -->
+          <div class="hacker-block hk-section">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/опашка</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd">ls --queue</span>
+              <span class="hk-led ok"></span>
+              <button class="hk-header-btn" id="dashGoScanBtn">▸ ВИЖ</button>
+            </div>
+            <div id="dashQueueSnapshot" class="queue-snapshot"></div>
           </div>
-          <div id="dashQueueSnapshot" class="queue-snapshot"></div>
 
-          <!-- Deadlines -->
-          <div class="section-header">
-            <span class="section-title">Срокове</span>
-            <button class="link-btn" id="addDeadlineBtn">+ Нов</button>
+          <!-- Deadlines — terminal section -->
+          <div class="hacker-block hk-section">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/срокове</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd">cron --list</span>
+              <span class="hk-led ok"></span>
+              <button class="hk-header-btn" id="addDeadlineBtn">+ НОВ</button>
+            </div>
+            <div id="deadlinesList" class="deadlines-list"></div>
           </div>
-          <div id="deadlinesList" class="deadlines-list"></div>
 
-          <!-- Recent Docs -->
-          <div class="section-header">
-            <span class="section-title">Последни</span>
-            <button class="link-btn" id="dashViewAllBtn">Всички</button>
+          <!-- Recent Docs — terminal section -->
+          <div class="hacker-block hk-section">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/последни</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd">tail -5 /docs</span>
+              <span class="hk-led ok"></span>
+              <button class="hk-header-btn" id="dashViewAllBtn">▸ ВСИЧКИ</button>
+            </div>
+            <div id="recentDocsList" class="recent-docs-list"></div>
           </div>
-          <div id="recentDocsList" class="recent-docs-list"></div>
         </div>
       </section>
 

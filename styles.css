@@ -5784,3 +5784,160 @@ select.dl-field-input {
 }
 
 [data-theme="matrix"] .hk-mem-btn { border-radius: 0; }
+
+/* ════════════════════════════════════════════
+   Hacker-block section variant + header action chip
+   ════════════════════════════════════════════ */
+.hk-section { padding: 12px 12px 10px; }
+.hk-section > .hk-header { margin-bottom: 8px; padding-bottom: 8px; }
+
+.hk-header-btn {
+  margin-left: auto;
+  background: rgba(34,197,94,0.08);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--accent);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background .15s ease, transform .1s ease;
+  white-space: nowrap;
+}
+.hk-header-btn:hover {
+  background: rgba(34,197,94,0.18);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.hk-header-btn:active { transform: scale(0.94); }
+[data-theme="matrix"] .hk-header-btn { border-radius: 0; }
+
+/* ════════════════════════════════════════════
+   BOTTOM DOCK — Matrix terminal taskbar
+   Sharp corners, mono font, [01]-[05] tab keys, green active glow
+   ════════════════════════════════════════════ */
+[data-theme="matrix"] .bottom-dock {
+  background: linear-gradient(180deg, rgba(8,12,16,0.96), rgba(3,5,8,0.99)) !important;
+  border-top: 1px solid var(--accent) !important;
+  box-shadow:
+    0 -1px 0 color-mix(in srgb, var(--accent) 22%, transparent) inset,
+    0 -20px 60px rgba(0,0,0,0.7) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+[data-theme="matrix"] .bottom-dock::before {
+  background: linear-gradient(90deg, transparent, var(--accent), transparent) !important;
+  opacity: 1 !important;
+  height: 1px !important;
+  filter: drop-shadow(0 0 4px var(--accent));
+}
+[data-theme="matrix"] .bottom-dock::after { display: none !important; }
+
+[data-theme="matrix"] .dock-btn {
+  border-radius: 0 !important;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 2px solid transparent !important;
+  padding: 14px 6px 6px !important;
+  min-width: 56px !important;
+  position: relative;
+  box-shadow: none !important;
+}
+[data-theme="matrix"] .dock-btn::before,
+[data-theme="matrix"] .dock-btn::after {
+  display: none !important;
+}
+
+/* Tab key indicator [01]-[05] above icon */
+[data-theme="matrix"] .dock-btn .dock-icon::after {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  color: var(--text3);
+  letter-spacing: 1px;
+  font-weight: 700;
+  opacity: 0.7;
+}
+[data-theme="matrix"] .dock-btn[data-tab="dashboard"] .dock-icon::after { content: '[01]'; }
+[data-theme="matrix"] .dock-btn[data-tab="documents"] .dock-icon::after { content: '[02]'; }
+[data-theme="matrix"] .dock-btn[data-tab="scan"] .dock-icon::after      { content: '[+ ]'; color: var(--accent) !important; opacity: 1 !important; }
+[data-theme="matrix"] .dock-btn[data-tab="cinema"] .dock-icon::after    { content: '[04]'; }
+[data-theme="matrix"] .dock-btn[data-tab="more"] .dock-icon::after      { content: '[05]'; }
+[data-theme="matrix"] .dock-btn.active .dock-icon::after { color: var(--accent) !important; opacity: 1 !important; }
+
+[data-theme="matrix"] .dock-btn .dock-icon {
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border)) !important;
+  width: 38px !important;
+  height: 30px !important;
+  font-size: 1.05rem !important;
+  transform: none !important;
+  box-shadow: none !important;
+  filter: grayscale(0.4) opacity(0.75);
+  transition: all .18s ease;
+}
+[data-theme="matrix"] .dock-btn .dock-label {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.2px !important;
+  text-transform: uppercase !important;
+  color: var(--text3) !important;
+  margin-top: 4px !important;
+  text-shadow: none !important;
+  transform: none !important;
+}
+
+[data-theme="matrix"] .dock-btn.active {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 100%) !important;
+  border-top: 2px solid var(--accent) !important;
+  box-shadow:
+    0 -8px 22px color-mix(in srgb, var(--accent) 18%, transparent) inset,
+    0 -1px 0 var(--accent) !important;
+}
+[data-theme="matrix"] .dock-btn.active .dock-icon {
+  background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 0 8px color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  color: var(--accent) !important;
+  filter: grayscale(0) opacity(1);
+}
+[data-theme="matrix"] .dock-btn.active .dock-label {
+  color: var(--accent) !important;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent) !important;
+}
+
+/* CENTER button — primary scan action */
+[data-theme="matrix"] .dock-btn.dock-center .dock-icon {
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 50%, white)) !important;
+  border: 1px solid var(--accent) !important;
+  color: #000 !important;
+  font-weight: 900 !important;
+  font-size: 1.3rem !important;
+  width: 48px !important;
+  height: 32px !important;
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--accent) 65%, transparent),
+    0 0 28px color-mix(in srgb, var(--accent) 35%, transparent) !important;
+  filter: none;
+}
+[data-theme="matrix"] .dock-btn.dock-center .dock-icon::after {
+  color: #000 !important;
+  opacity: 0.7 !important;
+}
+[data-theme="matrix"] .dock-btn.dock-center.active {
+  background: transparent !important;
+  border-top-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Press feedback */
+[data-theme="matrix"] .dock-btn.dock-pressed .dock-icon,
+[data-theme="matrix"] .dock-btn:active .dock-icon { transform: scale(0.93) !important; }
