@@ -5723,3 +5723,64 @@ select.dl-field-input {
 }
 
 [data-theme="matrix"] .item-delete-btn { border-radius: 0; }
+
+/* ════════════════════════════════════════════
+   MEMORY CORE — action row (backup/restore/sync)
+   ════════════════════════════════════════════ */
+.hk-mem-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.hk-mem-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 6px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.hk-mem-btn:hover {
+  background: rgba(34,197,94,0.10);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hk-mem-btn:active { transform: scale(0.96); }
+.hk-mem-btn.primary {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent) 8%, transparent));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hk-mem-btn.primary:hover {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 32%, transparent), color-mix(in srgb, var(--accent) 14%, transparent));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.hk-mem-arrow { color: var(--accent); font-size: 9px; }
+.hk-mem-tail { color: var(--text2); font-size: 9px; font-weight: 500; }
+
+.hk-key-copy {
+  cursor: pointer;
+  text-decoration: underline dotted color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 3px;
+  transition: color .15s ease;
+}
+.hk-key-copy:hover { color: var(--accent); }
+.hk-key-copy::after {
+  content: ' ⧉';
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
+[data-theme="matrix"] .hk-mem-btn { border-radius: 0; }

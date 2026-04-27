@@ -3710,6 +3710,22 @@ function renderHackerStack() {
   const sysLed = document.getElementById('hkSysLed');
   if (sysLed) sysLed.className = 'hk-led ' + (pinSet ? 'ok' : 'warn');
 
+  // Persisted-storage indicator
+  const persistedEl = document.getElementById('hkPersisted');
+  if (persistedEl) {
+    const p = storageRuntime.persisted;
+    if (p === true) {
+      persistedEl.textContent = 'ЗАЩИТЕНА ✓';
+      persistedEl.style.color = 'var(--accent)';
+    } else if (p === false) {
+      persistedEl.textContent = 'ПРЕХОДНА';
+      persistedEl.style.color = 'var(--warning)';
+    } else {
+      persistedEl.textContent = '—';
+      persistedEl.style.color = '';
+    }
+  }
+
   // Upgrade slots — modules
   renderHackerModules({ pinSet, autosync: auto, docsCount: metrics ? metrics.docsCount : 0 });
 }
@@ -6624,6 +6640,56 @@ function initEventListeners() {
       const grid = document.getElementById('folderGrid');
       if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
+  });
+
+  // Memory Core actions — backup/restore/sync + copy key
+  document.getElementById('hkMemBackup')?.addEventListener('click', () => {
+    if (typeof exportBackupZip === 'function') exportBackupZip();
+    else showToast('⚠️ Backup не е наличен');
+  });
+  const restoreInput = document.getElementById('hkMemRestoreInput');
+  document.getElementById('hkMemRestore')?.addEventListener('click', () => {
+    if (!restoreInput) return;
+    openConfirm(
+      'Възстанови от .zip',
+      'Възстановяването ще ДОБАВИ документи и папки от backup-а. Продължи?',
+      () => restoreInput.click()
+    );
+  });
+  restoreInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file && typeof importBackupZip === 'function') await importBackupZip(file);
+  });
+  document.getElementById('hkMemSync')?.addEventListener('click', async () => {
+    const cloud = window.DocOSCloud;
+    if (!cloud) { showToast('⚠️ Cloud не е зареден'); return; }
+    showToast('☁ Синхронизирам…', 1500);
+    try {
+      await Promise.allSettled([
+        cloud.pushState ? cloud.pushState(false) : Promise.resolve(),
+        cloud.pullState ? cloud.pullState() : Promise.resolve()
+      ]);
+      showToast('✅ Синхронизирано');
+      renderHackerStack();
+    } catch (_) {
+      showToast('⚠️ Грешка при синхронизация');
+    }
+  });
+  document.getElementById('hkDeviceKey')?.addEventListener('click', async () => {
+    const key = localStorage.getItem('docos_cloud_device_id');
+    if (!key) { showToast('⚠️ Няма ключ'); return; }
+    try {
+      await navigator.clipboard.writeText(key);
+      showToast('📋 Ключът е копиран');
+    } catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = key; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); showToast('📋 Ключът е копиран'); }
+      catch (_2) { showToast('⚠️ Не можах да копирам'); }
+      ta.remove();
+    }
   });
   document.getElementById('dashGoScanBtn')?.addEventListener('click', () => showTab('scan'));
 

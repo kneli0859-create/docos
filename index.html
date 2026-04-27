@@ -159,9 +159,16 @@
                 <div class="hk-row"><span class="hk-k">ОБЛАК</span><span class="hk-v hk-trunc" id="hkCloudHost">supabase</span></div>
                 <div class="hk-row"><span class="hk-k">ПОСЛ. СИНХ</span><span class="hk-v" id="hkLastSync">никога</span></div>
                 <div class="hk-row"><span class="hk-k">АВТО-СИНХ</span><span class="hk-v" id="hkAutosync">—</span></div>
+                <div class="hk-row"><span class="hk-k">ПАМЕТТА</span><span class="hk-v" id="hkPersisted">—</span></div>
                 <div class="hk-row hk-row-sec" id="hkSecureRow"><span class="hk-k">СИГУРНОСТ</span><span class="hk-v"><button class="hk-btn-inline" id="hkSecureBtn">ЗАЩИТИ ▶</button></span></div>
-                <div class="hk-row"><span class="hk-k">КЛЮЧ</span><span class="hk-v hk-trunc" id="hkDeviceKey">—</span></div>
+                <div class="hk-row"><span class="hk-k">КЛЮЧ</span><span class="hk-v hk-trunc hk-key-copy" id="hkDeviceKey" title="Натисни за копиране">—</span></div>
               </div>
+              <div class="hk-mem-actions">
+                <button class="hk-mem-btn" id="hkMemBackup"><span class="hk-mem-arrow">▸</span> BACKUP <span class="hk-mem-tail">.zip</span></button>
+                <button class="hk-mem-btn" id="hkMemRestore"><span class="hk-mem-arrow">▸</span> RESTORE</button>
+                <button class="hk-mem-btn primary" id="hkMemSync"><span class="hk-mem-arrow">▸</span> SYNC СЕГА</button>
+              </div>
+              <input type="file" id="hkMemRestoreInput" accept=".zip,application/zip" style="display:none"/>
             </div>
 
             <!-- QUICK ACTIONS — terminal-style hot keys -->
