@@ -3523,14 +3523,23 @@ function showTab(tab) {
   const btn = document.querySelector(`.dock-btn[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
 
-  // Cinema tab transitions: pause video on leave, restore animations on other tabs
+  // Cinema tab transitions
   if (prevTab === 'cinema' && tab !== 'cinema') {
-    try { document.getElementById('cinemaVideo')?.pause(); } catch (_) {}
+    // Leaving cinema → fully release the embed so background streams stop,
+    // batteries are spared, and re-entry doesn't see a "live" iframe and
+    // re-assert the playing flag (which would freeze global filters/anims).
+    try { const v = document.getElementById('cinemaVideo'); if (v) { v.pause(); } } catch (_) {}
+    try {
+      const ifr = document.getElementById('cinemaIframe');
+      if (ifr) { ifr.src = 'about:blank'; ifr.style.display = 'none'; }
+    } catch (_) {}
     cinemaSetPlayingMode?.(false);
   } else if (tab === 'cinema') {
+    // Only re-assert the flag for a genuinely-playing <video>.
+    // iframe playback is cross-origin and can't be probed reliably,
+    // so we never re-assert from iframe state — let real playback events do it.
     const v = document.getElementById('cinemaVideo');
-    const ifr = document.getElementById('cinemaIframe');
-    if ((v && v.src && !v.paused) || (ifr && ifr.src && ifr.src !== 'about:blank')) {
+    if (v && v.src && !v.paused && !v.ended && v.readyState >= 2) {
       cinemaSetPlayingMode?.(true);
     }
   }
