@@ -6981,6 +6981,12 @@ function cinemaOpenUrlModal() {
 function cinemaCloseUrlModal() {
   const m = document.getElementById('cinemaUrlModal');
   if (m) m.style.display = 'none';
+  // Safety net: only the modal closing without a real playback start should clear the flag.
+  const video = document.getElementById('cinemaVideo');
+  const iframe = document.getElementById('cinemaIframe');
+  const videoActive = video && video.src && !video.paused && !video.ended;
+  const iframeActive = iframe && iframe.src && iframe.src !== 'about:blank' && iframe.style.display !== 'none';
+  if (!videoActive && !iframeActive) cinemaSetPlayingMode(false);
 }
 
 function cinemaGetUrlHistory() {
@@ -7183,7 +7189,7 @@ async function cinemaPlayUrl(rawUrl) {
   if (empty) empty.style.display = 'none';
 
   cinemaDestroyHls();
-  cinemaSetPlayingMode(true);
+  // NOTE: do NOT setPlayingMode(true) here — only on real playback start.
 
   if (mode === 'video') {
     cinemaHideBar();
@@ -7192,6 +7198,10 @@ async function cinemaPlayUrl(rawUrl) {
     if (video) {
       video.style.display = '';
       video.crossOrigin = 'anonymous';
+      const onReady = () => { cinemaSetPlayingMode(true); };
+      const onErr = () => { cinemaSetPlayingMode(false); cinemaShowIframeFallback(rawUrl); };
+      video.addEventListener('loadeddata', onReady, { once: true });
+      video.addEventListener('error', onErr, { once: true });
       video.src = url;
       video.load();
       video.play().catch(() => {});
@@ -7211,6 +7221,8 @@ async function cinemaPlayUrl(rawUrl) {
     if (overlay) overlay.classList.add('hidden');
 
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.addEventListener('loadeddata', () => cinemaSetPlayingMode(true), { once: true });
+      video.addEventListener('error', () => { cinemaSetPlayingMode(false); cinemaShowIframeFallback(rawUrl); }, { once: true });
       video.src = url;
       video.load();
       video.play().catch(() => {});
@@ -7223,13 +7235,25 @@ async function cinemaPlayUrl(rawUrl) {
         cinemaHlsInstance = new Hls({ enableWorker: true, lowLatencyMode: false });
         cinemaHlsInstance.loadSource(url);
         cinemaHlsInstance.attachMedia(video);
-        cinemaHlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+        cinemaHlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+          cinemaSetPlayingMode(true);
+          video.play().catch(() => {});
+        });
         cinemaHlsInstance.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) showToast('HLS грешка: ' + (data.details || 'unknown'));
+          if (data.fatal) {
+            cinemaSetPlayingMode(false);
+            showToast('HLS грешка: ' + (data.details || 'unknown'));
+          }
         });
         showToast('▶ HLS поток...');
-      } else { showToast('HLS не се поддържа'); }
-    } catch (e) { showToast('hls.js не зареди'); }
+      } else {
+        cinemaSetPlayingMode(false);
+        showToast('HLS не се поддържа');
+      }
+    } catch (e) {
+      cinemaSetPlayingMode(false);
+      showToast('hls.js не зареди');
+    }
     return;
   }
 
@@ -7247,7 +7271,7 @@ async function cinemaPlayUrl(rawUrl) {
 
   let didLoad = false;
   let didFail = false;
-  const onLoad = () => { didLoad = true; cinemaHideIframeLoader(); };
+  const onLoad = () => { didLoad = true; cinemaHideIframeLoader(); cinemaSetPlayingMode(true); };
   const onError = () => { didFail = true; cinemaHideIframeLoader(); cinemaShowIframeFallback(rawUrl); };
   iframe.addEventListener('load', onLoad, { once: true });
   iframe.addEventListener('error', onError, { once: true });
@@ -7269,6 +7293,7 @@ async function cinemaPlayUrl(rawUrl) {
 function cinemaShowIframeFallback(originalUrl) {
   const viewport = document.getElementById('cinemaViewport');
   const iframe = document.getElementById('cinemaIframe');
+  cinemaSetPlayingMode(false);
   if (!viewport) return;
   viewport.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
 
@@ -7300,7 +7325,7 @@ async function cinemaPlayResolved(rawUrl, imdbIdHint) {
   if (controls) controls.style.display = 'none';
   if (overlay) overlay.classList.add('hidden');
   cinemaDestroyHls();
-  cinemaSetPlayingMode(true);
+  // NOTE: setPlayingMode(true) is deferred until an embed iframe actually loads.
 
   cinemaShowBar(rawUrl);
   cinemaShowIframeLoader('Намирам филма в IMDb...');
@@ -7361,32 +7386,34 @@ function cinemaUpdateBarForResolved(originalUrl) {
   }
 }
 
-function cinemaLoadEmbedAtIdx(idx) {
+function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
   const iframe = document.getElementById('cinemaIframe');
   if (!iframe) return;
   const provider = cinemaEmbedProviders[idx];
-  if (!provider) return;
+  if (!provider) { cinemaSetPlayingMode(false); return; }
 
   cinemaShowIframeLoader('Зареждам ' + provider.name + '...');
   iframe.style.display = '';
   iframe.src = 'about:blank';
 
   let didLoad = false;
-  const onLoad = () => { didLoad = true; cinemaHideIframeLoader(); };
+  const onLoad = () => { didLoad = true; cinemaHideIframeLoader(); cinemaSetPlayingMode(true); };
   iframe.addEventListener('load', onLoad, { once: true });
   requestAnimationFrame(() => { iframe.src = provider.url; });
 
   setTimeout(() => {
     iframe.removeEventListener('load', onLoad);
     if (!didLoad) {
-      // Auto-rotate to next source
       const next = (idx + 1) % cinemaEmbedProviders.length;
-      if (next !== idx && cinemaEmbedProviders.length > 1) {
+      const exhausted = attemptCount + 1 >= cinemaEmbedProviders.length;
+      if (!exhausted && cinemaEmbedProviders.length > 1) {
         cinemaEmbedIdx = next;
         cinemaUpdateBarForResolved(document.getElementById('cinemaBarOpen')?.href || '#');
-        cinemaLoadEmbedAtIdx(next);
+        cinemaLoadEmbedAtIdx(next, attemptCount + 1);
       } else {
         cinemaHideIframeLoader();
+        cinemaSetPlayingMode(false);
+        cinemaShowIframeFallback(document.getElementById('cinemaBarOpen')?.href || '#');
       }
     }
   }, 9000);
