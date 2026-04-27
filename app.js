@@ -7592,26 +7592,22 @@ function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
   cinemaArmPulseTimer();
 
   let didLoad = false;
-  let confirmedAlive = false;
 
   const onLoad = () => {
     didLoad = true;
     cinemaHideIframeLoader();
-    // iframe load == wrapper loaded, NOT playback start.
-    // Do not flip playing flag here — postMessage 'play|playing|started'
-    // is the only authoritative signal for embed playback.
-    setTimeout(() => {
-      if (cinemaIframeLooksAlive(iframe)) {
-        confirmedAlive = true;
-      }
-    }, 3000);
+    // iframe loaded → leave it visible; user taps Play inside the embed.
+    // Do not auto-rotate just because we can't peek inside (cross-origin
+    // scrollHeight is unreliable on iOS Safari). The "⏭ Друг източник"
+    // button gives the user manual control if this provider stalls.
   };
   iframe.addEventListener('load', onLoad, { once: true });
   requestAnimationFrame(() => { iframe.src = provider.url; });
 
+  // Watchdog: only rotate if the iframe NEVER loaded (network blocked / DNS fail).
   setTimeout(() => {
     iframe.removeEventListener('load', onLoad);
-    if (didLoad && confirmedAlive) return;
+    if (didLoad) return;
     const exhausted = attemptCount + 1 >= cinemaEmbedProviders.length;
     if (!exhausted && cinemaEmbedProviders.length > 1) {
       const next = (idx + 1) % cinemaEmbedProviders.length;
@@ -7624,7 +7620,7 @@ function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
       cinemaRemoveSourceBar();
       cinemaShowAllProvidersFailedOverlay(cinemaResolvedMeta || { embeds: cinemaEmbedProviders });
     }
-  }, 9000);
+  }, 12000);
 }
 
 function cinemaRemoveFromPlaylist(idx) {
