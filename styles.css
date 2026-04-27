@@ -674,20 +674,22 @@ a { color: var(--accent); }
   0%, 100% { transform: scale(0.84); opacity: 0.42; }
   50% { transform: scale(0.98); opacity: 0.58; }
 }
+/* Hue-rotate ranges trimmed: 360° (full rainbow) → ±60–90° (tonal sweep).
+   The plus button now breathes within a refined neighbourhood of the
+   current accent instead of cycling through every primary colour. */
 @keyframes dockPlusChameleon {
-  0% { filter: hue-rotate(0deg) saturate(1.01) brightness(0.99); }
-  25% { filter: hue-rotate(90deg) saturate(1.06) brightness(1.01); }
-  50% { filter: hue-rotate(180deg) saturate(1.04) brightness(1); }
-  75% { filter: hue-rotate(270deg) saturate(1.07) brightness(1.01); }
-  100% { filter: hue-rotate(360deg) saturate(1.01) brightness(0.99); }
+  0%   { filter: hue-rotate(-30deg) saturate(1.02) brightness(0.99); }
+  50%  { filter: hue-rotate(30deg)  saturate(1.04) brightness(1.01); }
+  100% { filter: hue-rotate(-30deg) saturate(1.02) brightness(0.99); }
 }
 @keyframes dockPlusHue {
-  0% { filter: hue-rotate(0deg) saturate(1.02); }
-  100% { filter: hue-rotate(360deg) saturate(1.08); }
+  0%   { filter: hue-rotate(-45deg) saturate(1.02); }
+  50%  { filter: hue-rotate(45deg)  saturate(1.05); }
+  100% { filter: hue-rotate(-45deg) saturate(1.02); }
 }
 @keyframes dockPlusHueFast {
-  0% { filter: hue-rotate(0deg) saturate(1.04) brightness(1); }
-  100% { filter: hue-rotate(360deg) saturate(1.12) brightness(1.03); }
+  0%   { filter: hue-rotate(-60deg) saturate(1.04) brightness(1); }
+  100% { filter: hue-rotate(60deg)  saturate(1.08) brightness(1.02); }
 }
 @keyframes dockPlusHaloTap {
   0% { transform: scale(0.84); opacity: 0.48; }
@@ -2021,16 +2023,15 @@ a { color: var(--accent); }
 
 /* ---------- Chameleon Animation ---------- */
 [data-theme="chameleon"] {
-  animation: chameleon 8s linear infinite;
+  /* Refined 3-tone professional palette: Indigo → Sky → Teal.
+     Cool, tonal, slow loop — feels like iOS Control Center, not a toy. */
+  animation: chameleon 18s ease-in-out infinite;
 }
 @keyframes chameleon {
-  0%   { --accent: #A855F7; }
-  16%  { --accent: #3B82F6; }
-  33%  { --accent: #22C55E; }
-  50%  { --accent: #EAB308; }
-  66%  { --accent: #F97316; }
-  83%  { --accent: #EF4444; }
-  100% { --accent: #A855F7; }
+  0%   { --accent: #6366F1; } /* Indigo  */
+  33%  { --accent: #0EA5E9; } /* Sky     */
+  66%  { --accent: #14B8A6; } /* Teal    */
+  100% { --accent: #6366F1; }
 }
 
 /* ---------- Animations ---------- */
