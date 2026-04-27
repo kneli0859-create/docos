@@ -3527,12 +3527,13 @@ function showTab(tab) {
   if (prevTab === 'cinema' && tab !== 'cinema') {
     try { document.getElementById('cinemaVideo')?.pause(); } catch (_) {}
     cinemaSetPlayingMode?.(false);
+    try { cinemaRemoveSourceBar?.(); } catch (_) {}
   } else if (tab === 'cinema') {
     const v = document.getElementById('cinemaVideo');
-    const ifr = document.getElementById('cinemaIframe');
-    if ((v && v.src && !v.paused) || (ifr && ifr.src && ifr.src !== 'about:blank')) {
+    if (v && v.src && !v.paused && !v.ended && v.readyState >= 2) {
       cinemaSetPlayingMode?.(true);
     }
+    // Iframe playback flag is owned by postMessage events — do not reassert here.
   }
 
   // Render tab content
@@ -6922,10 +6923,13 @@ function cinemaPlayIndex(idx) {
   viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
   cinemaHideIframeLoader?.();
   cinemaHideBar?.();
-  cinemaSetPlayingMode?.(true);
+  // Don't optimistically flip playing flag — let real playback events do it.
   video.style.display = '';
   const controls = document.getElementById('cinemaControls');
   if (controls) controls.style.display = '';
+
+  video.addEventListener('loadeddata', () => cinemaSetPlayingMode?.(true), { once: true });
+  video.addEventListener('playing', () => cinemaSetPlayingMode?.(true), { once: true });
 
   video.src = item.blobUrl;
   video.load();
@@ -6989,7 +6993,10 @@ function cinemaCloseUrlModal() {
   const iframe = document.getElementById('cinemaIframe');
   const videoActive = video && video.src && !video.paused && !video.ended;
   const iframeActive = iframe && iframe.src && iframe.src !== 'about:blank' && iframe.style.display !== 'none';
-  if (!videoActive && !iframeActive) cinemaSetPlayingMode(false);
+  if (!videoActive && !iframeActive) {
+    cinemaSetPlayingMode(false);
+    try { cinemaRemoveSourceBar?.(); } catch (_) {}
+  }
 }
 
 function cinemaGetUrlHistory() {
@@ -7588,11 +7595,12 @@ function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
   const onLoad = () => {
     didLoad = true;
     cinemaHideIframeLoader();
-    // Don't trust load alone; verify after a short settle window.
+    // iframe load == wrapper loaded, NOT playback start.
+    // Do not flip playing flag here — postMessage 'play|playing|started'
+    // is the only authoritative signal for embed playback.
     setTimeout(() => {
       if (cinemaIframeLooksAlive(iframe)) {
         confirmedAlive = true;
-        cinemaSetPlayingMode(true);
       }
     }, 3000);
   };
@@ -7611,6 +7619,7 @@ function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
     } else {
       cinemaHideIframeLoader();
       cinemaSetPlayingMode(false);
+      cinemaRemoveSourceBar();
       cinemaShowAllProvidersFailedOverlay(cinemaResolvedMeta || { embeds: cinemaEmbedProviders });
     }
   }, 9000);
