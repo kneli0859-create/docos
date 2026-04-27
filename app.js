@@ -3954,29 +3954,55 @@ function renderDashboard() {
 }
 
 function renderDashboardFolderRail() {
-  const el = document.getElementById('dashFolderRail');
-  if (!el) return;
-  const folders = [...(state.folders || [])].map(f => ({
-    ...f,
-    count: state.documents.filter(d => d.folderId === f.id).length,
-    pending: state.documents.filter(d => d.folderId === f.id && d.status === 'pending').length
-  })).sort((a, b) => (b.count + b.pending) - (a.count + a.pending)).slice(0, 6);
-
-  if (!folders.length) {
-    el.innerHTML = '<div class="empty-sub" style="padding:.25rem 0">Няма папки — създай първата.</div>';
+  const list  = document.getElementById('hkFoldersList');
+  const totEl = document.getElementById('hkFoldersTotal');
+  const docEl = document.getElementById('hkFoldersDocs');
+  const pndEl = document.getElementById('hkFoldersPending');
+  const block = document.getElementById('hkFoldersBlock');
+  if (!list || !block) {
+    const legacy = document.getElementById('dashFolderRail');
+    if (legacy) legacy.innerHTML = '';
     return;
   }
 
-  el.innerHTML = folders.map(f => `
-    <button class="dash-folder-card" data-folderid="${f.id}">
-      <span class="dash-folder-icon">${f.icon || '📁'}</span>
-      <span class="dash-folder-name">${escHtml(f.name)}</span>
-      <span class="dash-folder-meta">${f.count} документа${f.pending ? ` · ${f.pending} за преглед` : ''}</span>
-    </button>
-  `).join('');
+  const all = (state.folders || []).map(f => ({
+    ...f,
+    count: state.documents.filter(d => d.folderId === f.id).length,
+    pending: state.documents.filter(d => d.folderId === f.id && d.status === 'pending').length
+  }));
+  const totalDocs    = all.reduce((s, f) => s + f.count, 0);
+  const totalPending = all.reduce((s, f) => s + f.pending, 0);
 
-  el.querySelectorAll('.dash-folder-card').forEach(card => {
-    card.addEventListener('click', () => showFolderDetail(card.dataset.folderid));
+  if (totEl) totEl.textContent = String(all.length);
+  if (docEl) docEl.textContent = String(totalDocs);
+  if (pndEl) {
+    pndEl.textContent = String(totalPending);
+    pndEl.classList.toggle('warn', totalPending > 0);
+  }
+
+  if (!all.length) {
+    list.innerHTML = '<div class="hk-folders-empty">// no_folders — натисни <b>+</b> за нова</div>';
+    return;
+  }
+
+  const top = [...all].sort((a, b) => (b.count + b.pending) - (a.count + a.pending)).slice(0, 4);
+  list.innerHTML = top.map(f => {
+    const sizeStr = f.count ? `${f.count}d` : '—';
+    const flag = f.pending ? `<span class="hk-frow-flag">!${f.pending}</span>` : '';
+    return `
+      <button type="button" class="hk-frow" data-folderid="${escHtml(f.id)}">
+        <span class="hk-frow-perms">drwxr-xr-x</span>
+        <span class="hk-frow-icon">${f.icon || '📁'}</span>
+        <span class="hk-frow-name">${escHtml(f.name)}</span>
+        <span class="hk-frow-size">${sizeStr}</span>
+        ${flag}
+      </button>`;
+  }).join('') + (all.length > top.length
+    ? `<div class="hk-folders-more">+ ${all.length - top.length} още · cd /папки</div>`
+    : '');
+
+  list.querySelectorAll('.hk-frow').forEach(row => {
+    row.addEventListener('click', () => showFolderDetail(row.dataset.folderid));
   });
 }
 
@@ -6547,6 +6573,13 @@ function initEventListeners() {
     setTimeout(() => document.getElementById('addQuickLinkBtn')?.click(), 120);
   });
   document.getElementById('dashFoldersOpenBtn')?.addEventListener('click', () => showTab('documents'));
+  document.getElementById('hkFoldersOpenBtn')?.addEventListener('click', () => {
+    showTab('documents');
+    setTimeout(() => {
+      const grid = document.getElementById('folderGrid');
+      if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  });
   document.getElementById('dashGoScanBtn')?.addEventListener('click', () => showTab('scan'));
 
   // Persist storage button

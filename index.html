@@ -304,12 +304,25 @@
             </div>
           </div>
 
-          <!-- Folders -->
-          <div class="section-header">
-            <span class="section-title">Папки</span>
-            <button class="link-btn" id="dashFoldersOpenBtn">Всички</button>
+          <!-- Folders — terminal preview + open button -->
+          <div class="hacker-block hk-folders" id="hkFoldersBlock">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/папки</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd">ls -la --count</span>
+              <span class="hk-led ok"></span>
+            </div>
+            <div class="hk-folders-stats">
+              <div class="hk-fstat"><span class="hk-fstat-k">total</span><span class="hk-fstat-v" id="hkFoldersTotal">0</span></div>
+              <div class="hk-fstat"><span class="hk-fstat-k">docs</span><span class="hk-fstat-v" id="hkFoldersDocs">0</span></div>
+              <div class="hk-fstat"><span class="hk-fstat-k">pending</span><span class="hk-fstat-v warn" id="hkFoldersPending">0</span></div>
+            </div>
+            <div class="hk-folders-list" id="hkFoldersList"></div>
+            <button class="hk-folders-open" id="hkFoldersOpenBtn">
+              <span class="hk-fopen-arrow">▸</span>
+              <span class="hk-fopen-label">cd /папки</span>
+              <span class="hk-fopen-tail">→</span>
+            </button>
           </div>
-          <div id="dashFolderRail" class="dash-folder-rail"></div>
 
           <!-- Queue -->
           <div class="section-header">
