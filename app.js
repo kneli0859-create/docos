@@ -52,7 +52,7 @@ const ASSET_DB_NAME = 'docos_assets';
 const ASSET_DB_VERSION = 1;
 const ASSET_STORE = 'assets';
 const LEGACY_DATA_URL_PREFIX = 'data:';
-const MAX_LOCAL_FILE_BYTES = 100 * 1024 * 1024;
+const MAX_LOCAL_FILE_BYTES = 500 * 1024 * 1024;
 const PDF_JS_CDN_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs';
 const OCR_LANG_PRIMARY = 'eng+deu+bul';
 const OCR_LANG_FALLBACK = 'eng';
@@ -1002,14 +1002,101 @@ function buildPersistableStateSnapshot() {
   };
 }
 
-function saveState() {
+/* State storage — IndexedDB primary (unlocks iOS Safari 5MB localStorage cap),
+   localStorage best-effort mirror for fast cold-boot reads. */
+const STATE_DB_NAME = 'docos_state_db';
+const STATE_DB_VERSION = 1;
+const STATE_STORE = 'state';
+const STATE_KEY = 'main';
+let stateDbPromise = null;
+
+function openStateDb() {
+  if (stateDbPromise) return stateDbPromise;
+  stateDbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(STATE_DB_NAME, STATE_DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror  = () => reject(req.error);
+  });
+  return stateDbPromise;
+}
+async function idbGetState() {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(buildPersistableStateSnapshot()));
+    const db = await openStateDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STATE_STORE, 'readonly');
+      const req = tx.objectStore(STATE_STORE).get(STATE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror  = () => reject(req.error);
+    });
+  } catch (_) { return null; }
+}
+async function idbPutState(snapshot) {
+  const db = await openStateDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STATE_STORE, 'readwrite');
+    tx.objectStore(STATE_STORE).put(snapshot, STATE_KEY);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror    = () => reject(tx.error);
+  });
+}
+
+let _saveStateRefreshTimer = null;
+function _scheduleStateUiRefresh() {
+  if (_saveStateRefreshTimer) clearTimeout(_saveStateRefreshTimer);
+  _saveStateRefreshTimer = setTimeout(() => {
+    refreshStorageEstimate(true).catch(() => {});
+    refreshStoragePersistence(false).catch(() => {});
+    try { renderHackerStack(); } catch (_) {}
+  }, 250);
+}
+
+function saveState() {
+  const snapshot = buildPersistableStateSnapshot();
+  // Primary: IndexedDB — no 5MB localStorage cap on iOS Safari
+  idbPutState(snapshot).catch(e => console.warn('DocOS idb saveState failed:', e?.message || e));
+  // Best-effort mirror to localStorage for fast cold-boot reads (silently skip on quota)
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(snapshot));
   } catch (e) {
     const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || /quota/i.test(e.message || ''));
-    console.warn('DocOS saveState failed:', e?.name || '', e?.message || e);
-    if (isQuota) showToast('⚠️ Локалната памет е пълна. Изтрий стари файлове.', 5000);
-    else showToast('⚠️ Грешка при запис');
+    if (!isQuota) console.warn('DocOS saveState LS mirror failed:', e?.name || '', e?.message || e);
+    // No toast — IDB is primary now, LS quota is no longer a blocker
+  }
+  _scheduleStateUiRefresh();
+}
+
+async function loadStateFromIdbIfNewer() {
+  try {
+    const idbSnapshot = await idbGetState();
+    if (!idbSnapshot) {
+      // First migration: nothing in IDB yet → seed from current in-memory state
+      const seed = buildPersistableStateSnapshot();
+      idbPutState(seed).catch(()=>{});
+      return false;
+    }
+    const localCount = (state.documents || []).length + (state.intakeQueue || []).length;
+    const idbCount   = (idbSnapshot.documents || []).length + (idbSnapshot.intakeQueue || []).length;
+    // Prefer IDB only if it contains MORE data (otherwise LS read at boot was authoritative)
+    if (idbCount > localCount) {
+      state = Object.assign({}, state, idbSnapshot);
+      state.documents   = (state.documents   || []).map(migrateDoc);
+      state.intakeQueue = (state.intakeQueue || []).map(migrateQueueItem);
+      if (!Array.isArray(state.folders))    state.folders    = [];
+      if (!Array.isArray(state.deadlines))  state.deadlines  = [];
+      if (!Array.isArray(state.alerts))     state.alerts     = [];
+      if (!Array.isArray(state.quickLinks)) state.quickLinks = [];
+      state.deadlines = state.deadlines.map(normalizeDeadline);
+      state.alerts    = state.alerts.map(normalizeAlert).filter(Boolean);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn('DocOS: idb load skipped', e?.message || e);
+    return false;
   }
 }
 
@@ -8291,6 +8378,8 @@ async function init() {
   await openAssetDb().catch(err => {
     console.warn('DocOS: IndexedDB unavailable, fallback to metadata-only mode', err);
   });
+  const idbReplaced = await loadStateFromIdbIfNewer().catch(() => false);
+  if (idbReplaced) console.info('DocOS: state loaded from IndexedDB (larger snapshot)');
   await requestPersistentStorageIfAvailable().catch(() => false);
   await migrateLegacyInlineDataToIndexedDb().catch(err => {
     console.warn('DocOS: legacy migration skipped', err);
