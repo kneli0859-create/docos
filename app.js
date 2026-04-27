@@ -7553,11 +7553,13 @@ if (typeof window !== 'undefined' && !window.__cinemaPlaybackMsgBound) {
 
 function cinemaApplyIframeHardening(iframe) {
   if (!iframe) return;
-  // Block popup ads + top-navigation; allow scripts/forms/presentation needed by players.
-  iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+  // Embeds (vidsrc/2embed/etc) need popup capability for their play button + a sane
+  // referrer for anti-hotlinking checks. Browser cross-origin sandbox already isolates
+  // them from our DOM. Strict sandbox/no-referrer broke play yesterday — keep it loose.
+  iframe.removeAttribute('sandbox');
   iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
   iframe.setAttribute('allowfullscreen', 'true');
-  iframe.setAttribute('referrerpolicy', 'no-referrer');
+  iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
   iframe.setAttribute('loading', 'eager');
 }
 
