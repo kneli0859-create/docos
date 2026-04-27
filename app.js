@@ -4040,14 +4040,26 @@ function renderDashboardQueueSnapshot() {
         </div>
         <div class="queue-snapshot-side">
           <span class="confidence-badge ${confidenceLevel(item.confidence || 0)}">${confidenceLabel(item.confidence || 0)}</span>
-          <button class="link-btn" data-queue-open="${item.id}">Преглед</button>
+          <div class="queue-snapshot-btns">
+            <button class="link-btn" data-queue-open="${item.id}">Преглед</button>
+            <button class="item-delete-btn" data-queue-delete="${item.id}" title="Изтрий" aria-label="Изтрий">✕</button>
+          </div>
         </div>
       </div>
     `;
   }).join('');
 
   el.querySelectorAll('[data-queue-open]').forEach(btn => {
-    btn.addEventListener('click', () => openIntakeSheet(btn.dataset.queueOpen));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); openIntakeSheet(btn.dataset.queueOpen); });
+  });
+  el.querySelectorAll('[data-queue-delete]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const iid = btn.dataset.queueDelete;
+      const item = (state.intakeQueue || []).find(i => i.id === iid);
+      const name = item?.suggestedTitle || item?.originalFileName || 'този файл';
+      openConfirm('Премахни от опашката', `Премахни "${name}"?`, () => discardIntakeItem(iid));
+    });
   });
 }
 
@@ -4428,6 +4440,7 @@ function galleryItemHTML(d) {
         : `<div class="gallery-item-fallback">${DOC_TYPE_ICONS[d.previewType] || DOC_TYPE_ICONS[d.docType] || '📄'}</div>`}
       <span class="confidence-badge ${confLevel}" style="font-size:.5rem">${confidenceLabel(d.confidence||0)}</span>
       ${d.status === 'pending' ? '<span class="gallery-item-status">⏳</span>' : ''}
+      <button class="item-delete-btn item-delete-btn--abs" data-doc-delete="${d.id}" title="Изтрий" aria-label="Изтрий">✕</button>
       <div class="gallery-item-overlay">
         <div class="gallery-item-title">${escHtml(d.title)}</div>
         <div class="gallery-item-meta">${escHtml(parsed?.typeLabel || d.docType || '')}${d.institution ? ' · ' + escHtml(d.institution) : ''}</div>
@@ -4461,8 +4474,25 @@ function docItemHTML(d) {
         </div>
         ${dup ? `<div class="duplicate-inline">Дубликат • ${escHtml(dup.reason)}</div>` : ''}
       </div>
+      <button class="item-delete-btn" data-doc-delete="${d.id}" title="Изтрий" aria-label="Изтрий">✕</button>
     </div>
   `;
+}
+
+function quickDeleteDoc(docId) {
+  const doc = state.documents.find(d => d.id === docId);
+  if (!doc) return;
+  openConfirm('Изтрий документ', `Изтрий "${doc.title || 'този документ'}"?`, async () => {
+    state.documents = state.documents.filter(d => d.id !== docId);
+    saveState();
+    deleteBlobIfOrphaned(doc.blobKey, { excludeDocId: docId }).catch(()=>{});
+    refreshStorageEstimate(true).catch(()=>{});
+    renderDashboard();
+    renderMoreTab();
+    if (state.currentFolderId) renderFolderDetail();
+    else if (state.currentTab === 'documents') renderDocuments();
+    showToast('🗑 Документът е изтрит');
+  });
 }
 
 /* ═════════
@@ -6363,6 +6393,21 @@ function escHtml(str) {
 
 function initEventListeners() {
   document.addEventListener('pointerdown', primeDockAudio, { passive: true });
+
+  // Global ✕ delete delegate for doc/queue cards
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.item-delete-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (btn.dataset.docDelete)   return quickDeleteDoc(btn.dataset.docDelete);
+    if (btn.dataset.queueDelete) {
+      const iid = btn.dataset.queueDelete;
+      const item = (state.intakeQueue || []).find(i => i.id === iid);
+      const name = item?.suggestedTitle || item?.originalFileName || 'този файл';
+      openConfirm('Премахни от опашката', `Премахни "${name}"?`, () => discardIntakeItem(iid));
+    }
+  }, true);
 
 
   // Bottom dock
