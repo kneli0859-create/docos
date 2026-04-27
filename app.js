@@ -2996,9 +2996,9 @@ function confidenceLevel(score) {
 }
 
 function confidenceLabel(score) {
-  if (score >= 70) return 'AI ✓';
-  if (score >= 40) return 'AI: ниска точност';
-  return '';
+  if (score >= 70) return score + '% ✓';
+  if (score >= 40) return score + '% ~';
+  return score + '% ?';
 }
 
 function percentOf(part, total) {
@@ -3527,13 +3527,12 @@ function showTab(tab) {
   if (prevTab === 'cinema' && tab !== 'cinema') {
     try { document.getElementById('cinemaVideo')?.pause(); } catch (_) {}
     cinemaSetPlayingMode?.(false);
-    try { cinemaRemoveSourceBar?.(); } catch (_) {}
   } else if (tab === 'cinema') {
     const v = document.getElementById('cinemaVideo');
-    if (v && v.src && !v.paused && !v.ended && v.readyState >= 2) {
+    const ifr = document.getElementById('cinemaIframe');
+    if ((v && v.src && !v.paused) || (ifr && ifr.src && ifr.src !== 'about:blank')) {
       cinemaSetPlayingMode?.(true);
     }
-    // Iframe playback flag is owned by postMessage events — do not reassert here.
   }
 
   // Render tab content
@@ -3800,7 +3799,6 @@ function renderRecentDocs() {
   el.innerHTML = recent.map(d => docItemHTML(d)).join('');
   el.querySelectorAll('.doc-item').forEach(item => {
     item.addEventListener('click', () => openDocPreview(item.dataset.docid));
-    attachLongPressActions(item);
   });
 }
 
@@ -4112,7 +4110,6 @@ function renderDocList() {
   }
   el.querySelectorAll('.doc-item, .gallery-item').forEach(item => {
     item.addEventListener('click', () => openDocPreview(item.dataset.docid));
-    attachLongPressActions(item);
   });
 }
 
@@ -4284,7 +4281,6 @@ function renderFolderDetail() {
       .map(d => docItemHTML(d)).join('');
     listEl.querySelectorAll('.doc-item').forEach(item => {
       item.addEventListener('click', () => openDocPreview(item.dataset.docid));
-      attachLongPressActions(item);
     });
   }
 }
@@ -6923,13 +6919,10 @@ function cinemaPlayIndex(idx) {
   viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
   cinemaHideIframeLoader?.();
   cinemaHideBar?.();
-  // Don't optimistically flip playing flag — let real playback events do it.
+  cinemaSetPlayingMode?.(true);
   video.style.display = '';
   const controls = document.getElementById('cinemaControls');
   if (controls) controls.style.display = '';
-
-  video.addEventListener('loadeddata', () => cinemaSetPlayingMode?.(true), { once: true });
-  video.addEventListener('playing', () => cinemaSetPlayingMode?.(true), { once: true });
 
   video.src = item.blobUrl;
   video.load();
@@ -6993,10 +6986,7 @@ function cinemaCloseUrlModal() {
   const iframe = document.getElementById('cinemaIframe');
   const videoActive = video && video.src && !video.paused && !video.ended;
   const iframeActive = iframe && iframe.src && iframe.src !== 'about:blank' && iframe.style.display !== 'none';
-  if (!videoActive && !iframeActive) {
-    cinemaSetPlayingMode(false);
-    try { cinemaRemoveSourceBar?.(); } catch (_) {}
-  }
+  if (!videoActive && !iframeActive) cinemaSetPlayingMode(false);
 }
 
 function cinemaGetUrlHistory() {
@@ -7122,145 +7112,6 @@ function cinemaLoadHlsLib() {
 function cinemaSetPlayingMode(on) {
   if (on) document.documentElement.dataset.cinemaPlaying = '1';
   else delete document.documentElement.dataset.cinemaPlaying;
-  if (on) {
-    document.querySelector('.cinema-source-next')?.classList.remove('pulse');
-  }
-}
-
-function cinemaIsPlaying() {
-  return document.documentElement.dataset.cinemaPlaying === '1';
-}
-
-let cinemaPulseTimer = null;
-function cinemaArmPulseTimer() {
-  if (cinemaPulseTimer) clearTimeout(cinemaPulseTimer);
-  cinemaPulseTimer = setTimeout(() => {
-    if (!cinemaIsPlaying()) {
-      document.querySelector('.cinema-source-next')?.classList.add('pulse');
-    }
-  }, 8000);
-}
-
-function cinemaRemoveSourceBar() {
-  document.querySelector('.cinema-source-bar')?.remove();
-  if (cinemaPulseTimer) { clearTimeout(cinemaPulseTimer); cinemaPulseTimer = null; }
-}
-
-function cinemaUpdateSourceBar(originalUrl) {
-  const viewport = document.getElementById('cinemaViewport');
-  if (!viewport) return;
-  const meta = cinemaResolvedMeta || {};
-  const providers = cinemaEmbedProviders || [];
-  const cur = providers[cinemaEmbedIdx] || null;
-  const total = providers.length;
-  const idxLabel = total ? `${cinemaEmbedIdx + 1}/${total}` : '';
-  const titleStr = meta.title || (() => { try { return new URL(originalUrl).hostname.replace(/^www\./, ''); } catch (_) { return 'Видео'; } })();
-  const yearStr = meta.year ? ` (${escHtml(String(meta.year))})` : '';
-  const providerStr = cur ? `Източник: ${escHtml(cur.name)}${idxLabel ? ' · ' + idxLabel : ''}` : '';
-
-  let bar = viewport.querySelector('.cinema-source-bar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.className = 'cinema-source-bar';
-    bar.innerHTML = `
-      <div class="cinema-source-info">
-        <span class="cinema-source-title"></span>
-        <span class="cinema-source-provider"></span>
-      </div>
-      <div class="cinema-source-actions">
-        <button type="button" class="cinema-source-btn cinema-source-next">⏭ Друг източник</button>
-        <button type="button" class="cinema-source-btn cinema-source-external">🔗 Външно</button>
-        <button type="button" class="cinema-source-btn cinema-source-close">✕</button>
-      </div>
-    `;
-    viewport.appendChild(bar);
-
-    bar.querySelector('.cinema-source-next').addEventListener('click', () => {
-      const t = cinemaEmbedProviders.length;
-      if (!t) return;
-      const next = (cinemaEmbedIdx + 1) % t;
-      if (next === 0 && cinemaEmbedIdx === t - 1) {
-        showToast('Опитах всички. Опитай външно.');
-      }
-      cinemaEmbedIdx = next;
-      cinemaSetPlayingMode(false);
-      cinemaLoadEmbedAtIdx(next);
-    });
-    bar.querySelector('.cinema-source-external').addEventListener('click', () => {
-      const cur2 = cinemaEmbedProviders[cinemaEmbedIdx];
-      if (cur2 && cur2.url) {
-        window.open(cur2.url, '_blank', 'noopener,noreferrer');
-        showToast('Отварям в нов tab');
-      }
-    });
-    bar.querySelector('.cinema-source-close').addEventListener('click', () => {
-      cinemaRemoveSourceBar();
-      cinemaStopUrl();
-    });
-  }
-
-  bar.querySelector('.cinema-source-title').innerHTML = `▶ ${escHtml(titleStr)}${yearStr}`;
-  bar.querySelector('.cinema-source-provider').textContent = providerStr;
-}
-
-function cinemaShowAllProvidersFailedOverlay(data) {
-  cinemaSetPlayingMode(false);
-  document.querySelector('.cinema-fallback-overlay')?.remove();
-
-  const overlay = document.createElement('div');
-  overlay.className = 'cinema-fallback-overlay';
-  const title = (data && data.title) || 'Филм';
-  const year = data && data.year ? ` (${data.year})` : '';
-  const imdb = data && data.imdbId || '';
-  const embeds = (data && Array.isArray(data.embeds)) ? data.embeds : (cinemaEmbedProviders || []);
-
-  const externalLinks = embeds.slice(0, 4).map(e =>
-    `<button class="fb-btn fb-btn-primary" data-url="${escHtml(e.url || '')}">▶ Отвори ${escHtml(e.name || e.provider || 'източник')} в нов прозорец</button>`
-  ).join('');
-
-  const yr = data && data.year ? String(data.year) : '';
-  const searchQuery = encodeURIComponent(`${title} ${yr} watch online`.trim());
-  const ytQuery = encodeURIComponent(`${title} ${yr} trailer`.trim());
-
-  overlay.innerHTML = `
-    <div class="fb-backdrop"></div>
-    <div class="fb-content">
-      <div class="fb-icon">🛡</div>
-      <div class="fb-title">Не намерихме работещ източник</div>
-      <div class="fb-subtitle">iOS Safari блокира някои външни плеъри</div>
-
-      <div class="fb-movie-card">
-        <div class="fb-movie-title">"${escHtml(title)}${escHtml(year)}"</div>
-        ${imdb ? `<div class="fb-movie-meta">IMDB: ${escHtml(imdb)}</div>` : ''}
-      </div>
-
-      <div class="fb-section-label">Опитай ръчно:</div>
-      ${externalLinks}
-
-      <div class="fb-section-label">Или потърси:</div>
-      <button class="fb-btn fb-btn-secondary" data-url="https://www.google.com/search?q=${searchQuery}">🔍 Google</button>
-      <button class="fb-btn fb-btn-secondary" data-url="https://www.youtube.com/results?search_query=${ytQuery}">🔍 YouTube</button>
-
-      <button class="fb-btn fb-btn-cancel" data-close="1">✕ Затвори</button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => overlay.classList.add('visible'));
-
-  const close = () => {
-    overlay.classList.remove('visible');
-    setTimeout(() => overlay.remove(), 220);
-  };
-
-  overlay.addEventListener('click', (e) => {
-    if (e.target.classList.contains('fb-backdrop')) { close(); return; }
-    const btn = e.target.closest('[data-url], [data-close]');
-    if (!btn) return;
-    if (btn.dataset.url) {
-      window.open(btn.dataset.url, '_blank', 'noopener,noreferrer');
-    }
-    close();
-  });
 }
 
 function cinemaShowBar(rawUrl) {
@@ -7300,8 +7151,6 @@ function cinemaStopUrl() {
   if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
   if (controls) controls.style.display = '';
   viewport?.querySelectorAll('.cinema-iframe-fallback').forEach(el => el.remove());
-  cinemaRemoveSourceBar();
-  document.querySelector('.cinema-fallback-overlay')?.remove();
   cinemaHideIframeLoader();
   cinemaHideBar();
   cinemaSetPlayingMode(false);
@@ -7417,7 +7266,6 @@ async function cinemaPlayUrl(rawUrl) {
   cinemaShowBar(rawUrl);
   cinemaShowIframeLoader('Зареждам ' + (new URL(url).hostname.replace(/^www\./, '')) + '...');
 
-  cinemaApplyIframeHardening(iframe);
   iframe.style.display = '';
   iframe.src = 'about:blank';
 
@@ -7487,13 +7335,13 @@ async function cinemaPlayResolved(rawUrl, imdbIdHint) {
     data = await cinemaResolveMovie(rawUrl, imdbIdHint);
   } catch (e) {
     cinemaHideIframeLoader();
-    cinemaShowAllProvidersFailedOverlay({ title: rawUrl, embeds: [] });
+    cinemaShowIframeFallback(rawUrl);
     showToast('Не намерих филма: ' + e.message);
     return;
   }
   if (!data || !data.ok || !data.embeds || !data.embeds.length) {
     cinemaHideIframeLoader();
-    cinemaShowAllProvidersFailedOverlay(data || { title: rawUrl, embeds: [] });
+    cinemaShowIframeFallback(rawUrl);
     showToast('IMDb не върна резултат');
     return;
   }
@@ -7538,44 +7386,6 @@ function cinemaUpdateBarForResolved(originalUrl) {
   }
 }
 
-// Global postMessage listener — embeds occasionally signal real playback
-if (typeof window !== 'undefined' && !window.__cinemaPlaybackMsgBound) {
-  window.__cinemaPlaybackMsgBound = true;
-  window.addEventListener('message', (e) => {
-    const d = e && e.data;
-    if (!d) return;
-    const ev = (typeof d === 'string') ? d : (d.event || d.type || '');
-    if (typeof ev === 'string' && /^(play|playing|started|playback|video_play)$/i.test(ev)) {
-      cinemaSetPlayingMode(true);
-    }
-  }, false);
-}
-
-function cinemaApplyIframeHardening(iframe) {
-  if (!iframe) return;
-  // Embeds (vidsrc/2embed/etc) need popup capability for their play button + a sane
-  // referrer for anti-hotlinking checks. Browser cross-origin sandbox already isolates
-  // them from our DOM. Strict sandbox/no-referrer broke play yesterday — keep it loose.
-  iframe.removeAttribute('sandbox');
-  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
-  iframe.setAttribute('allowfullscreen', 'true');
-  iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
-  iframe.setAttribute('loading', 'eager');
-}
-
-function cinemaIframeLooksAlive(iframe) {
-  // Cross-origin iframes will throw when accessing contentDocument — that's a strong signal
-  // the embed actually navigated and rendered. Same-origin "about:blank" reads as ~0 height.
-  try {
-    const doc = iframe.contentDocument;
-    if (!doc) return true; // cross-origin → assume alive
-    const h = doc.documentElement?.scrollHeight || doc.body?.scrollHeight || 0;
-    return h > 100;
-  } catch (_) {
-    return true; // SecurityError = cross-origin = real third-party doc loaded
-  }
-}
-
 function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
   const iframe = document.getElementById('cinemaIframe');
   if (!iframe) return;
@@ -7583,44 +7393,30 @@ function cinemaLoadEmbedAtIdx(idx, attemptCount = 0) {
   if (!provider) { cinemaSetPlayingMode(false); return; }
 
   cinemaShowIframeLoader('Зареждам ' + provider.name + '...');
-  cinemaApplyIframeHardening(iframe);
   iframe.style.display = '';
   iframe.src = 'about:blank';
 
-  cinemaEmbedIdx = idx;
-  cinemaUpdateSourceBar(document.getElementById('cinemaBarOpen')?.href || '#');
-  cinemaArmPulseTimer();
-
   let didLoad = false;
-
-  const onLoad = () => {
-    didLoad = true;
-    cinemaHideIframeLoader();
-    // iframe loaded → leave it visible; user taps Play inside the embed.
-    // Do not auto-rotate just because we can't peek inside (cross-origin
-    // scrollHeight is unreliable on iOS Safari). The "⏭ Друг източник"
-    // button gives the user manual control if this provider stalls.
-  };
+  const onLoad = () => { didLoad = true; cinemaHideIframeLoader(); cinemaSetPlayingMode(true); };
   iframe.addEventListener('load', onLoad, { once: true });
   requestAnimationFrame(() => { iframe.src = provider.url; });
 
-  // Watchdog: only rotate if the iframe NEVER loaded (network blocked / DNS fail).
   setTimeout(() => {
     iframe.removeEventListener('load', onLoad);
-    if (didLoad) return;
-    const exhausted = attemptCount + 1 >= cinemaEmbedProviders.length;
-    if (!exhausted && cinemaEmbedProviders.length > 1) {
+    if (!didLoad) {
       const next = (idx + 1) % cinemaEmbedProviders.length;
-      cinemaEmbedIdx = next;
-      cinemaUpdateBarForResolved(document.getElementById('cinemaBarOpen')?.href || '#');
-      cinemaLoadEmbedAtIdx(next, attemptCount + 1);
-    } else {
-      cinemaHideIframeLoader();
-      cinemaSetPlayingMode(false);
-      cinemaRemoveSourceBar();
-      cinemaShowAllProvidersFailedOverlay(cinemaResolvedMeta || { embeds: cinemaEmbedProviders });
+      const exhausted = attemptCount + 1 >= cinemaEmbedProviders.length;
+      if (!exhausted && cinemaEmbedProviders.length > 1) {
+        cinemaEmbedIdx = next;
+        cinemaUpdateBarForResolved(document.getElementById('cinemaBarOpen')?.href || '#');
+        cinemaLoadEmbedAtIdx(next, attemptCount + 1);
+      } else {
+        cinemaHideIframeLoader();
+        cinemaSetPlayingMode(false);
+        cinemaShowIframeFallback(document.getElementById('cinemaBarOpen')?.href || '#');
+      }
     }
-  }, 12000);
+  }, 9000);
 }
 
 function cinemaRemoveFromPlaylist(idx) {
@@ -8049,144 +7845,6 @@ async function init() {
 
   queueMicrotask(() => {
     warmExternalRuntimeCache().catch(() => refreshRuntimeCacheTruth().catch(() => {}));
-  });
-}
-
-/* ═══════════════════════════════════════════════
-   LONG-PRESS ACTION SHEET (delete / rename / preview)
-═══════════════════════════════════════════════ */
-
-function attachLongPressActions(rootEl, getDocId) {
-  if (!rootEl || rootEl.__longPressBound) return;
-  rootEl.__longPressBound = true;
-
-  let pressTimer = null;
-  let pressed = false;
-  let triggered = false;
-  let startX = 0, startY = 0;
-  const HOLD_MS = 500;
-  const MOVE_THRESHOLD = 10;
-
-  const cancel = () => {
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-    if (pressed) {
-      rootEl.classList.remove('long-press-active');
-      pressed = false;
-    }
-  };
-
-  const onStart = (e) => {
-    triggered = false;
-    const t = e.touches ? e.touches[0] : e;
-    startX = t.clientX; startY = t.clientY;
-    pressed = true;
-    rootEl.classList.add('long-press-active');
-    pressTimer = setTimeout(() => {
-      pressTimer = null;
-      rootEl.classList.remove('long-press-active');
-      pressed = false;
-      triggered = true;
-      try { if (navigator.vibrate) navigator.vibrate(50); } catch (_) {}
-      const docId = typeof getDocId === 'function' ? getDocId(e) : rootEl.dataset.docid;
-      if (docId) openDocActionSheet(docId);
-    }, HOLD_MS);
-  };
-
-  const onMove = (e) => {
-    if (!pressed) return;
-    const t = e.touches ? e.touches[0] : e;
-    if (Math.abs(t.clientX - startX) > MOVE_THRESHOLD ||
-        Math.abs(t.clientY - startY) > MOVE_THRESHOLD) {
-      cancel();
-    }
-  };
-
-  // Suppress the click that follows a successful long-press so we don't also open preview
-  rootEl.addEventListener('click', (e) => {
-    if (triggered) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      triggered = false;
-    }
-  }, true);
-
-  rootEl.addEventListener('touchstart', onStart, { passive: true });
-  rootEl.addEventListener('touchmove', onMove, { passive: true });
-  rootEl.addEventListener('touchend', cancel, { passive: true });
-  rootEl.addEventListener('touchcancel', cancel, { passive: true });
-  rootEl.addEventListener('mousedown', onStart);
-  rootEl.addEventListener('mousemove', onMove);
-  rootEl.addEventListener('mouseup', cancel);
-  rootEl.addEventListener('mouseleave', cancel);
-}
-
-function rerenderAfterDocChange() {
-  try { renderDashboard?.(); } catch (_) {}
-  try { renderRecentDocs?.(); } catch (_) {}
-  if (state.currentTab === 'documents') { try { renderDocuments?.(); } catch (_) {} }
-  if (state.currentFolderId) { try { renderFolderDetail?.(); } catch (_) {} }
-  try { renderAgentTab?.(); } catch (_) {}
-  try { renderMoreTab?.(); } catch (_) {}
-}
-
-function openDocActionSheet(docId) {
-  const doc = state.documents.find(d => d.id === docId);
-  if (!doc) return;
-
-  const sheet = document.createElement('div');
-  sheet.className = 'doc-action-sheet';
-  const titleStr = doc.title || doc.originalFileName || doc.cleanFileName || 'Документ';
-  sheet.innerHTML = `
-    <div class="action-sheet-backdrop"></div>
-    <div class="action-sheet-content" role="dialog" aria-modal="true">
-      <div class="action-sheet-title">${escHtml(titleStr)}</div>
-      <button class="action-sheet-btn" data-action="preview">👁 Преглед</button>
-      <button class="action-sheet-btn" data-action="rename">✏️ Преименувай</button>
-      <button class="action-sheet-btn action-sheet-danger" data-action="delete">🗑 Изтрий</button>
-      <button class="action-sheet-btn action-sheet-cancel" data-action="cancel">Отказ</button>
-    </div>
-  `;
-  document.body.appendChild(sheet);
-  requestAnimationFrame(() => sheet.classList.add('visible'));
-
-  const close = () => {
-    sheet.classList.remove('visible');
-    setTimeout(() => sheet.remove(), 220);
-  };
-
-  sheet.addEventListener('click', (e) => {
-    if (e.target.classList.contains('action-sheet-backdrop')) { close(); return; }
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const action = btn.dataset.action;
-    close();
-
-    if (action === 'preview') {
-      openDocPreview(docId);
-    } else if (action === 'rename') {
-      const current = doc.title || doc.originalFileName || '';
-      const next = prompt('Ново име:', current);
-      if (next === null) return;
-      const trimmed = next.trim();
-      if (!trimmed || trimmed === current) return;
-      doc.title = trimmed;
-      doc.updatedAt = new Date().toISOString();
-      saveState();
-      rerenderAfterDocChange();
-      showToast('✓ Преименуван');
-    } else if (action === 'delete') {
-      openConfirm('Изтриване на документ', `Сигурен ли си, че искаш да изтриеш "${titleStr}"? Това действие не може да се отмени.`, async () => {
-        const blobKey = doc.blobKey;
-        state.documents = state.documents.filter(d => d.id !== docId);
-        saveState();
-        if (blobKey) {
-          try { await deleteBlobIfOrphaned(blobKey, { excludeDocId: docId }); } catch (_) {}
-        }
-        try { await refreshStorageEstimate(true); } catch (_) {}
-        rerenderAfterDocChange();
-        showToast('🗑 Изтрит');
-      });
-    }
   });
 }
 
