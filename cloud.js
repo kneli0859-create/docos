@@ -61,8 +61,12 @@
       return v.toString(16);
     });
   }
+  var OWNER_KEY = '3c69f8c5-71ff-49cf-aafb-b73cea1c713e';
   function getDeviceId() {
-    return localStorage.getItem(LS_DEVICE_ID) || null;
+    var stored = localStorage.getItem(LS_DEVICE_ID);
+    if (stored) return stored;
+    localStorage.setItem(LS_DEVICE_ID, OWNER_KEY);
+    return OWNER_KEY;
   }
   function createNewDeviceId() {
     var id = uuid();
