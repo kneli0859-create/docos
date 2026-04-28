@@ -269,6 +269,7 @@ function normalizeDeadline(item) {
     reminderMode: item.reminderMode || '1d',
     remindAt: item.remindAt || '',
     remindedAt: item.remindedAt || '',
+    alarmTrackId: typeof item.alarmTrackId === 'string' ? item.alarmTrackId : '',
     createdAt: item.createdAt || new Date().toISOString(),
     updatedAt: item.updatedAt || new Date().toISOString()
   };
@@ -8660,3 +8661,757 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+
+/* ═══════════════════════════════════════════════════════════════════
+   v5.4 — BRUTAL MUSIC ENGINE + REAL ALARM
+   ═══════════════════════════════════════════════════════════════════ */
+
+// State extensions are lazy — we add fields without breaking existing state shape.
+function ensureMusicState() {
+  if (!Array.isArray(state.tracks)) state.tracks = [];
+  if (typeof state.alarmTrackId !== 'string') state.alarmTrackId = '';
+  if (!state.musicPrefs || typeof state.musicPrefs !== 'object') {
+    state.musicPrefs = { volume: 0.8, repeat: 'off', shuffle: false, eq: { bass: 0, mid: 0, treble: 0 }, speed: 1.0 };
+  }
+}
+
+const MP_TRACK_ASSET_PREFIX = 'track_';
+const MP_REC_ASSET_PREFIX = 'rec_';
+
+const musicEngine = {
+  audio: null,
+  ctx: null,
+  source: null,
+  analyser: null,
+  bassF: null, midF: null, trebleF: null,
+  gain: null,
+  visRaf: 0,
+  currentTrackId: '',
+  currentObjectUrl: '',
+  isPlaying: false,
+  filterQuery: '',
+  sortBy: 'newest',
+  pendingPlayId: '',
+  recorder: null,
+  recChunks: [],
+  recStartedAt: 0
+};
+
+function mpEnsureAudio() {
+  if (musicEngine.audio) return musicEngine.audio;
+  const audio = new Audio();
+  audio.preload = 'metadata';
+  audio.crossOrigin = 'anonymous';
+  audio.addEventListener('timeupdate', mpRenderProgress);
+  audio.addEventListener('durationchange', mpRenderProgress);
+  audio.addEventListener('play', () => { musicEngine.isPlaying = true; mpRenderControls(); mpStartVis(); document.getElementById('mpNowBlock')?.classList.add('playing'); });
+  audio.addEventListener('pause', () => { musicEngine.isPlaying = false; mpRenderControls(); document.getElementById('mpNowBlock')?.classList.remove('playing'); });
+  audio.addEventListener('ended', () => mpHandleEnded());
+  audio.addEventListener('error', () => { showToast('⚠️ Грешка при възпроизвеждане'); });
+  audio.volume = (state.musicPrefs?.volume ?? 0.8);
+  musicEngine.audio = audio;
+  return audio;
+}
+
+function mpEnsureContext() {
+  if (musicEngine.ctx) return musicEngine.ctx;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  try {
+    const ctx = new Ctx();
+    const audio = mpEnsureAudio();
+    const src = ctx.createMediaElementSource(audio);
+    const bass = ctx.createBiquadFilter(); bass.type = 'lowshelf'; bass.frequency.value = 200; bass.gain.value = state.musicPrefs?.eq?.bass || 0;
+    const mid = ctx.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 1000; mid.Q.value = 0.9; mid.gain.value = state.musicPrefs?.eq?.mid || 0;
+    const treble = ctx.createBiquadFilter(); treble.type = 'highshelf'; treble.frequency.value = 3500; treble.gain.value = state.musicPrefs?.eq?.treble || 0;
+    const gain = ctx.createGain(); gain.gain.value = 1.0;
+    const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.78;
+    src.connect(bass); bass.connect(mid); mid.connect(treble); treble.connect(gain); gain.connect(analyser); analyser.connect(ctx.destination);
+    musicEngine.ctx = ctx; musicEngine.source = src; musicEngine.bassF = bass; musicEngine.midF = mid; musicEngine.trebleF = treble; musicEngine.gain = gain; musicEngine.analyser = analyser;
+  } catch (e) { console.warn('Music ctx init failed', e); }
+  return musicEngine.ctx;
+}
+
+function mpResumeCtx() {
+  try { if (musicEngine.ctx && musicEngine.ctx.state === 'suspended') musicEngine.ctx.resume(); } catch {}
+}
+
+function mpFormatBytes(b) {
+  if (!Number.isFinite(b) || b <= 0) return '0 B';
+  if (b < 1024) return `${b} B`;
+  if (b < 1024*1024) return `${(b/1024).toFixed(1)} KB`;
+  if (b < 1024*1024*1024) return `${(b/1024/1024).toFixed(1)} MB`;
+  return `${(b/1024/1024/1024).toFixed(2)} GB`;
+}
+
+function mpFormatTime(sec) {
+  if (!Number.isFinite(sec) || sec < 0) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function mpCleanTitle(name) {
+  return String(name || 'Без име').replace(/\.[a-z0-9]{1,5}$/i, '').replace(/[._-]+/g, ' ').trim() || 'Без име';
+}
+
+async function mpAddTracksFromFiles(fileList) {
+  ensureMusicState();
+  const files = Array.from(fileList || []).filter(f => f && /^audio\//i.test(f.type) || /\.(mp3|wav|m4a|ogg|flac|aac|webm)$/i.test(f.name || ''));
+  if (!files.length) { showToast('⚠️ Избери аудио файл'); return; }
+  let added = 0;
+  for (const file of files) {
+    try {
+      const id = uid();
+      const safeBlob = await safeNormalizeBlob(file);
+      const meta = await mpProbeDuration(safeBlob).catch(() => 0);
+      await putAssetRecord({ id: MP_TRACK_ASSET_PREFIX + id, blob: safeBlob, type: file.type || 'audio/mpeg' });
+      state.tracks.push({
+        id, title: mpCleanTitle(file.name), artist: '', mime: file.type || 'audio/mpeg',
+        size: file.size || (safeBlob.size || 0), duration: meta || 0,
+        addedAt: new Date().toISOString(), source: 'upload'
+      });
+      added++;
+    } catch (e) { console.warn('mpAdd failed', e); }
+  }
+  if (added) { saveState(); mpRenderLibrary(); mpRenderStats(); mpRenderAlarmSelectors(); showToast(`🎵 Добавени: ${added}`); }
+}
+
+async function mpProbeDuration(blob) {
+  return new Promise(resolve => {
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = new Audio();
+      a.preload = 'metadata';
+      a.src = url;
+      a.addEventListener('loadedmetadata', () => { const d = a.duration; URL.revokeObjectURL(url); resolve(Number.isFinite(d) ? d : 0); }, { once: true });
+      a.addEventListener('error', () => { URL.revokeObjectURL(url); resolve(0); }, { once: true });
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} resolve(0); }, 6000);
+    } catch { resolve(0); }
+  });
+}
+
+async function mpDownloadFromUrl(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url) { showToast('⚠️ Постави линк'); return; }
+  // YouTube / Spotify / SoundCloud → cobalt.tools (browser cannot fetch them due to CORS + DRM)
+  const lower = url.toLowerCase();
+  if (/youtu\.?be|spotify|soundcloud|tiktok|deezer|tidal|apple\.com\/music/.test(lower)) {
+    const target = `https://cobalt.tools/?u=${encodeURIComponent(url)}`;
+    try { window.open(target, '_blank', 'noopener'); } catch {}
+    showToast('↗ Отворих cobalt.tools — свали MP3 и го качи тук', 4500);
+    return;
+  }
+  // Direct fetch — works for raw .mp3 etc with CORS allowed
+  try {
+    showToast('⬇ Тегля...', 2000);
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const blob = await res.blob();
+    if (!/^audio\//i.test(blob.type) && !/\.(mp3|wav|m4a|ogg|flac|aac)(\?|$)/i.test(url)) {
+      showToast('⚠️ URL не е аудио', 3500); return;
+    }
+    const filename = (url.split('/').pop() || 'track').split('?')[0];
+    const file = new File([blob], filename || 'track.mp3', { type: blob.type || 'audio/mpeg' });
+    await mpAddTracksFromFiles([file]);
+    document.getElementById('mpUrlInput').value = '';
+  } catch (e) {
+    console.warn('URL download failed', e);
+    showToast('⚠️ CORS блокира — пробвай cobalt.tools', 4000);
+    try { window.open(`https://cobalt.tools/?u=${encodeURIComponent(url)}`, '_blank', 'noopener'); } catch {}
+  }
+}
+
+async function mpDeleteTrack(id) {
+  ensureMusicState();
+  state.tracks = state.tracks.filter(t => t.id !== id);
+  if (state.alarmTrackId === id) state.alarmTrackId = '';
+  // Also clear it from any deadlines that point to this id
+  (state.deadlines || []).forEach(dl => { if (dl.alarmTrackId === id) dl.alarmTrackId = ''; });
+  await deleteAssetRecord(MP_TRACK_ASSET_PREFIX + id).catch(() => {});
+  if (musicEngine.currentTrackId === id) { mpStop(); musicEngine.currentTrackId = ''; mpRenderNow(null); }
+  saveState();
+  mpRenderLibrary(); mpRenderStats(); mpRenderAlarmSelectors();
+  showToast('🗑 Записът е изтрит');
+}
+
+async function mpLoadTrackBlob(id) {
+  const rec = await getAssetRecord(MP_TRACK_ASSET_PREFIX + id);
+  return rec?.blob || null;
+}
+
+async function mpPlayTrack(id) {
+  ensureMusicState();
+  const t = state.tracks.find(x => x.id === id);
+  if (!t) return;
+  const blob = await mpLoadTrackBlob(id);
+  if (!blob) { showToast('⚠️ Файлът липсва'); return; }
+  mpEnsureAudio();
+  mpEnsureContext();
+  mpResumeCtx();
+  // Release prev URL
+  if (musicEngine.currentObjectUrl) { try { URL.revokeObjectURL(musicEngine.currentObjectUrl); } catch {} }
+  const url = URL.createObjectURL(blob);
+  musicEngine.currentObjectUrl = url;
+  musicEngine.currentTrackId = id;
+  musicEngine.audio.src = url;
+  musicEngine.audio.playbackRate = state.musicPrefs?.speed || 1.0;
+  try { await musicEngine.audio.play(); } catch (e) { console.warn('play failed', e); }
+  mpRenderNow(t);
+  mpRenderLibrary();
+}
+
+function mpTogglePlayPause() {
+  if (!musicEngine.audio) {
+    // No track loaded — auto-play first
+    ensureMusicState();
+    const first = state.tracks[0];
+    if (first) { mpPlayTrack(first.id); return; }
+    showToast('⚠️ Няма качени записи');
+    return;
+  }
+  mpResumeCtx();
+  if (musicEngine.audio.paused) musicEngine.audio.play().catch(() => {});
+  else musicEngine.audio.pause();
+}
+
+function mpStop() {
+  try { if (musicEngine.audio) { musicEngine.audio.pause(); musicEngine.audio.currentTime = 0; } } catch {}
+  if (musicEngine.currentObjectUrl) { try { URL.revokeObjectURL(musicEngine.currentObjectUrl); } catch {} musicEngine.currentObjectUrl = ''; }
+  cancelAnimationFrame(musicEngine.visRaf); musicEngine.visRaf = 0;
+}
+
+function mpHandleEnded() {
+  ensureMusicState();
+  const repeat = state.musicPrefs?.repeat || 'off';
+  if (repeat === 'one') { try { musicEngine.audio.currentTime = 0; musicEngine.audio.play(); } catch {} return; }
+  mpNext(true);
+}
+
+function mpNext(autoFromEnd = false) {
+  ensureMusicState();
+  const list = state.tracks; if (!list.length) return;
+  if (state.musicPrefs?.shuffle) {
+    const others = list.filter(t => t.id !== musicEngine.currentTrackId);
+    const pick = others.length ? others[Math.floor(Math.random()*others.length)] : list[0];
+    mpPlayTrack(pick.id); return;
+  }
+  const idx = list.findIndex(t => t.id === musicEngine.currentTrackId);
+  let nextIdx = idx + 1;
+  if (nextIdx >= list.length) {
+    if (autoFromEnd && state.musicPrefs?.repeat !== 'all') return; // stop at end
+    nextIdx = 0;
+  }
+  mpPlayTrack(list[nextIdx].id);
+}
+
+function mpPrev() {
+  ensureMusicState();
+  const list = state.tracks; if (!list.length) return;
+  const idx = list.findIndex(t => t.id === musicEngine.currentTrackId);
+  const prevIdx = idx <= 0 ? list.length - 1 : idx - 1;
+  mpPlayTrack(list[prevIdx].id);
+}
+
+function mpRenderNow(track) {
+  const titleEl = document.getElementById('mpNowTitle');
+  const subEl = document.getElementById('mpNowSub');
+  if (titleEl) titleEl.textContent = track ? track.title : '— Няма избран запис —';
+  if (subEl) subEl.textContent = track ? `${mpFormatBytes(track.size)} · ${mpFormatTime(track.duration)} · ${(track.mime || 'audio').split('/').pop()}` : 'Качи MP3 за да започнеш';
+  mpRenderControls();
+}
+
+function mpRenderControls() {
+  const btn = document.getElementById('mpPlayPauseBtn');
+  if (btn) btn.textContent = musicEngine.isPlaying ? '⏸' : '▶';
+  const shuffle = document.getElementById('mpShuffleBtn');
+  if (shuffle) shuffle.classList.toggle('is-active', !!state.musicPrefs?.shuffle);
+  const rep = document.getElementById('mpRepeatBtn');
+  if (rep) {
+    const mode = state.musicPrefs?.repeat || 'off';
+    rep.classList.toggle('is-active', mode !== 'off');
+    rep.textContent = mode === 'one' ? '🔂' : '🔁';
+  }
+  const speed = document.getElementById('mpSpeedBtn');
+  if (speed) speed.textContent = `${(state.musicPrefs?.speed || 1).toFixed(1)}x`;
+}
+
+function mpRenderProgress() {
+  const fill = document.getElementById('mpProgressFill');
+  const thumb = document.getElementById('mpProgressThumb');
+  const cur = document.getElementById('mpTimeCur');
+  const dur = document.getElementById('mpTimeDur');
+  const a = musicEngine.audio;
+  if (!a) return;
+  const pct = a.duration ? (a.currentTime / a.duration) * 100 : 0;
+  if (fill) fill.style.width = `${pct}%`;
+  if (thumb) thumb.style.left = `${pct}%`;
+  if (cur) cur.textContent = mpFormatTime(a.currentTime);
+  if (dur) dur.textContent = mpFormatTime(a.duration);
+}
+
+function mpStartVis() {
+  cancelAnimationFrame(musicEngine.visRaf);
+  const canvas = document.getElementById('mpVis');
+  const analyser = musicEngine.analyser;
+  if (!canvas || !analyser) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const draw = () => {
+    if (!musicEngine.isPlaying) { musicEngine.visRaf = 0; return; }
+    musicEngine.visRaf = requestAnimationFrame(draw);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== w * dpr || canvas.height !== h * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; ctx.scale(dpr, dpr); }
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+    ctx.clearRect(0, 0, w, h);
+    const bars = 48;
+    const step = Math.floor(data.length / bars);
+    const bw = w / bars;
+    for (let i = 0; i < bars; i++) {
+      const v = data[i * step] / 255;
+      const bh = Math.max(2, v * h * 0.95);
+      const x = i * bw + 1;
+      const y = h - bh;
+      const grd = ctx.createLinearGradient(0, y, 0, h);
+      grd.addColorStop(0, '#fcd34d');
+      grd.addColorStop(0.6, '#d4a843');
+      grd.addColorStop(1, '#c8941e');
+      ctx.fillStyle = grd;
+      ctx.fillRect(x, y, bw - 2, bh);
+    }
+  };
+  draw();
+}
+
+function mpRenderStats() {
+  ensureMusicState();
+  const total = state.tracks.length;
+  const totalBytes = state.tracks.reduce((a, t) => a + (t.size || 0), 0);
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText('mpStatCount', String(total));
+  setText('mpStatSize', mpFormatBytes(totalBytes));
+  const alarmName = state.alarmTrackId ? (state.tracks.find(t => t.id === state.alarmTrackId)?.title || '—') : 'beep';
+  setText('mpStatAlarm', alarmName);
+  const eng = musicEngine.audio ? (musicEngine.isPlaying ? 'play' : 'pause') : 'idle';
+  setText('mpStatEng', eng);
+}
+
+function mpRenderLibrary() {
+  ensureMusicState();
+  const list = document.getElementById('mpLibList');
+  const empty = document.getElementById('mpLibEmpty');
+  if (!list || !empty) return;
+  let items = [...state.tracks];
+  const q = (musicEngine.filterQuery || '').toLowerCase();
+  if (q) items = items.filter(t => (t.title || '').toLowerCase().includes(q));
+  const sortBy = musicEngine.sortBy || 'newest';
+  if (sortBy === 'newest') items.sort((a,b) => (b.addedAt || '').localeCompare(a.addedAt || ''));
+  else if (sortBy === 'name') items.sort((a,b) => (a.title || '').localeCompare(b.title || ''));
+  else if (sortBy === 'duration') items.sort((a,b) => (b.duration || 0) - (a.duration || 0));
+  if (!items.length) { empty.style.display = 'block'; list.innerHTML = ''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = items.map(t => {
+    const isCur = musicEngine.currentTrackId === t.id;
+    const isAlarm = state.alarmTrackId === t.id;
+    return `
+      <div class="mp-lib-row ${isCur ? 'is-current' : ''} ${isAlarm ? 'is-alarm' : ''}" data-track-id="${t.id}">
+        <button class="mp-lib-play" data-act="play" title="Пусни">${isCur && musicEngine.isPlaying ? '⏸' : '▶'}</button>
+        <div class="mp-lib-meta">
+          <div class="mp-lib-title">${escHtml(t.title)}</div>
+          <div class="mp-lib-sub">${mpFormatTime(t.duration)} · ${mpFormatBytes(t.size)}${isAlarm ? ' · 🔔 АЛАРМА' : ''}</div>
+        </div>
+        <div class="mp-lib-actions">
+          <button class="mp-lib-act ${isAlarm ? 'alarm-on' : ''}" data-act="alarm" title="Ползвай за аларма">🔔</button>
+          <button class="mp-lib-act" data-act="rename" title="Преименувай">✎</button>
+          <button class="mp-lib-act danger" data-act="delete" title="Изтрий">🗑</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  list.querySelectorAll('.mp-lib-row').forEach(row => {
+    const id = row.dataset.trackId;
+    row.querySelector('[data-act="play"]')?.addEventListener('click', e => { e.stopPropagation(); if (musicEngine.currentTrackId === id) mpTogglePlayPause(); else mpPlayTrack(id); });
+    row.querySelector('[data-act="alarm"]')?.addEventListener('click', e => { e.stopPropagation(); state.alarmTrackId = state.alarmTrackId === id ? '' : id; saveState(); mpRenderLibrary(); mpRenderStats(); mpRenderAlarmSelectors(); showToast(state.alarmTrackId === id ? '🔔 Зададено като стандартна аларма' : '🔕 Премахнато'); });
+    row.querySelector('[data-act="rename"]')?.addEventListener('click', e => { e.stopPropagation(); const t = state.tracks.find(x => x.id === id); const nv = prompt('Ново име:', t?.title || ''); if (nv && t) { t.title = nv.trim() || t.title; saveState(); mpRenderLibrary(); mpRenderAlarmSelectors(); if (musicEngine.currentTrackId === id) mpRenderNow(t); } });
+    row.querySelector('[data-act="delete"]')?.addEventListener('click', e => { e.stopPropagation(); if (confirm('Изтрий записа?')) mpDeleteTrack(id); });
+    row.addEventListener('click', () => { if (musicEngine.currentTrackId !== id) mpPlayTrack(id); });
+  });
+}
+
+function mpRenderAlarmSelectors() {
+  ensureMusicState();
+  const fill = (sel, currentValue) => {
+    if (!sel) return;
+    const opts = ['<option value="">— Системен бийп —</option>']
+      .concat(state.tracks.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.title)}</option>`));
+    sel.innerHTML = opts.join('');
+    sel.value = currentValue || '';
+  };
+  fill(document.getElementById('mpDefaultAlarm'), state.alarmTrackId);
+  fill(document.getElementById('deadlineAlarmTrack'), document.getElementById('deadlineEditId')?.value
+    ? (state.deadlines.find(d => d.id === document.getElementById('deadlineEditId').value)?.alarmTrackId ?? state.alarmTrackId)
+    : state.alarmTrackId);
+}
+
+function mpApplyEqUi() {
+  ensureMusicState();
+  const eq = state.musicPrefs.eq;
+  const set = (id, val, suffix=' dB') => { const el = document.getElementById(id); if (el) el.textContent = `${val}${suffix}`; };
+  ['mpEqBass','mpEqMid','mpEqTreble'].forEach(id => { const el = document.getElementById(id); if (el) el.value = id === 'mpEqBass' ? eq.bass : id === 'mpEqMid' ? eq.mid : eq.treble; });
+  set('mpEqBassVal', eq.bass);
+  set('mpEqMidVal', eq.mid);
+  set('mpEqTrebleVal', eq.treble);
+  if (musicEngine.bassF) musicEngine.bassF.gain.value = eq.bass;
+  if (musicEngine.midF)  musicEngine.midF.gain.value  = eq.mid;
+  if (musicEngine.trebleF) musicEngine.trebleF.gain.value = eq.treble;
+}
+
+function mpApplyEqPreset(name) {
+  ensureMusicState();
+  const presets = {
+    flat:   { bass: 0, mid: 0, treble: 0 },
+    bass:   { bass: 8, mid: 0, treble: 2 },
+    vocal:  { bass: -2, mid: 6, treble: 3 },
+    club:   { bass: 6, mid: 4, treble: 5 },
+    brutal: { bass: 12, mid: 8, treble: 10 }
+  };
+  const p = presets[name] || presets.flat;
+  state.musicPrefs.eq = p;
+  saveState();
+  mpApplyEqUi();
+  showToast(`🎛 EQ: ${name.toUpperCase()}`);
+}
+
+function mpSeekFromEvent(ev) {
+  const bar = document.getElementById('mpProgressBar');
+  if (!bar || !musicEngine.audio || !musicEngine.audio.duration) return;
+  const r = bar.getBoundingClientRect();
+  const x = (ev.touches?.[0]?.clientX ?? ev.clientX) - r.left;
+  const pct = Math.max(0, Math.min(1, x / r.width));
+  musicEngine.audio.currentTime = pct * musicEngine.audio.duration;
+}
+
+function mpToggleEqPanel() {
+  const p = document.getElementById('mpEqPanel');
+  if (!p) return;
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function mpCycleSpeed() {
+  ensureMusicState();
+  const speeds = [1.0, 1.25, 1.5, 2.0, 0.75];
+  const cur = state.musicPrefs.speed || 1.0;
+  const idx = speeds.findIndex(s => Math.abs(s - cur) < 0.01);
+  const next = speeds[(idx + 1) % speeds.length];
+  state.musicPrefs.speed = next;
+  if (musicEngine.audio) musicEngine.audio.playbackRate = next;
+  saveState(); mpRenderControls();
+}
+
+async function mpToggleRecording() {
+  if (musicEngine.recorder && musicEngine.recorder.state === 'recording') {
+    musicEngine.recorder.stop(); return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const rec = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    musicEngine.recorder = rec;
+    musicEngine.recChunks = [];
+    musicEngine.recStartedAt = Date.now();
+    rec.addEventListener('dataavailable', e => { if (e.data && e.data.size) musicEngine.recChunks.push(e.data); });
+    rec.addEventListener('stop', async () => {
+      try {
+        const blob = new Blob(musicEngine.recChunks, { type: 'audio/webm' });
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const file = new File([blob], `Запис_${ts}.webm`, { type: 'audio/webm' });
+        await mpAddTracksFromFiles([file]);
+      } finally {
+        try { stream.getTracks().forEach(t => t.stop()); } catch {}
+        musicEngine.recorder = null;
+        const btn = document.getElementById('mpRecordBtn');
+        if (btn) { btn.classList.remove('is-recording'); btn.querySelector('.mp-big-lbl').textContent = 'Запиши'; }
+      }
+    });
+    rec.start();
+    const btn = document.getElementById('mpRecordBtn');
+    if (btn) { btn.classList.add('is-recording'); btn.querySelector('.mp-big-lbl').textContent = '⏹ СПРИ'; }
+    showToast('🎙 Записвам...');
+  } catch (e) { showToast('⚠️ Микрофон недостъпен'); }
+}
+
+function renderMusicTab() {
+  ensureMusicState();
+  mpEnsureAudio();
+  mpEnsureContext();
+  mpResumeCtx();
+  mpRenderNow(state.tracks.find(t => t.id === musicEngine.currentTrackId) || null);
+  mpRenderLibrary();
+  mpRenderStats();
+  mpRenderAlarmSelectors();
+  mpApplyEqUi();
+  mpRenderControls();
+  // Volume sync
+  const vol = document.getElementById('mpVolume');
+  if (vol) vol.value = String(Math.round((state.musicPrefs?.volume ?? 0.8) * 100));
+}
+
+/* ── ALARM OVERLAY ─────────────────────────────────────────────────── */
+const alarmRuntime = { active: false, audio: null, deadline: null, fallbackOsc: null, fallbackCtx: null, snoozeTimer: 0, clockTimer: 0 };
+
+function alarmTickClock() {
+  const el = document.getElementById('alarmClock');
+  if (!el) return;
+  const now = new Date();
+  el.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+async function alarmStart(deadline) {
+  if (alarmRuntime.active) return; // single alarm at a time
+  ensureMusicState();
+  const overlay = document.getElementById('alarmOverlay');
+  if (!overlay) return;
+  alarmRuntime.active = true;
+  alarmRuntime.deadline = deadline;
+  document.getElementById('alarmTitle').textContent = deadline.title || 'Термин';
+  document.getElementById('alarmSub').textContent = formatDateTime(deadline) + (deadline.note ? ` · ${deadline.note}` : '');
+  // Pick alarm sound: per-deadline override → default → none (fallback synth)
+  const trackId = deadline.alarmTrackId || state.alarmTrackId || '';
+  const track = trackId ? state.tracks.find(t => t.id === trackId) : null;
+  const trackLbl = document.getElementById('alarmTrackName');
+  if (trackLbl) trackLbl.textContent = track ? `▸ ${track.title}` : '▸ Системен бийп';
+  overlay.style.display = 'flex';
+  alarmTickClock();
+  alarmRuntime.clockTimer = setInterval(alarmTickClock, 1000);
+  // Vibrate
+  try { if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 800]); } catch {}
+  if (track) {
+    try {
+      const blob = await mpLoadTrackBlob(track.id);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = new Audio(url);
+        a.loop = true; a.volume = 1.0;
+        a.play().catch(err => { console.warn('alarm audio play failed', err); alarmStartFallback(); });
+        alarmRuntime.audio = a;
+        alarmRuntime.audioUrl = url;
+        return;
+      }
+    } catch (e) { console.warn('alarm load track failed', e); }
+  }
+  alarmStartFallback();
+}
+
+function alarmStartFallback() {
+  // Aggressive synthetic alarm — repeating 880/660 Hz sweeps
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    alarmRuntime.fallbackCtx = ctx;
+    const tick = () => {
+      if (!alarmRuntime.active) return;
+      const t0 = ctx.currentTime;
+      [880, 660, 880, 660].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, t0 + i * 0.22);
+        gain.gain.setValueAtTime(0.0001, t0 + i * 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.4, t0 + i * 0.22 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.22 + 0.18);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t0 + i * 0.22);
+        osc.stop(t0 + i * 0.22 + 0.2);
+      });
+      setTimeout(tick, 1100);
+    };
+    tick();
+  } catch (e) { console.warn(e); }
+}
+
+function alarmStop(opts = {}) {
+  if (!alarmRuntime.active && !opts.force) return;
+  alarmRuntime.active = false;
+  const overlay = document.getElementById('alarmOverlay');
+  if (overlay) overlay.style.display = 'none';
+  clearInterval(alarmRuntime.clockTimer); alarmRuntime.clockTimer = 0;
+  if (alarmRuntime.audio) { try { alarmRuntime.audio.pause(); alarmRuntime.audio.src = ''; } catch {} alarmRuntime.audio = null; }
+  if (alarmRuntime.audioUrl) { try { URL.revokeObjectURL(alarmRuntime.audioUrl); } catch {} alarmRuntime.audioUrl = ''; }
+  if (alarmRuntime.fallbackCtx) { try { alarmRuntime.fallbackCtx.close(); } catch {} alarmRuntime.fallbackCtx = null; }
+  try { if (navigator.vibrate) navigator.vibrate(0); } catch {}
+}
+
+function alarmSnooze() {
+  const dl = alarmRuntime.deadline;
+  alarmStop();
+  if (!dl) return;
+  // Reset remindedAt + push remindAt by 5 min
+  const idx = (state.deadlines || []).findIndex(d => d.id === dl.id);
+  if (idx < 0) return;
+  const newAt = new Date(Date.now() + 5 * 60 * 1000);
+  state.deadlines[idx].remindAt = newAt.toISOString();
+  state.deadlines[idx].remindedAt = '';
+  saveState();
+  scheduleNextReminderCheck();
+  showToast('😴 Отложено с 5 минути');
+}
+
+/* ── REPLACE notifyReminder so it fires the brutal alarm overlay ─── */
+const __origNotifyReminder = typeof notifyReminder === 'function' ? notifyReminder : null;
+window.notifyReminder = async function(deadline) {
+  ensureMusicState();
+  // Send system push notification (best-effort, also wakes phone)
+  const body = `${deadline.note ? deadline.note + ' · ' : ''}${formatDateTime(deadline)}`;
+  if (pwaRuntime?.swRegistration && supportsNotifications() && Notification.permission === 'granted') {
+    try {
+      await pwaRuntime.swRegistration.showNotification(deadline.title || 'Термин', {
+        body, tag: `docos-${deadline.id}`, icon: 'icons/icon-192.png',
+        badge: 'icons/icon-192.png', vibrate: [400, 200, 400, 200, 800], requireInteraction: true
+      });
+    } catch (e) { console.warn('SW notif failed', e); }
+  } else if (supportsNotifications() && Notification.permission === 'granted') {
+    try { new Notification(deadline.title || 'Термин', { body, tag: `docos-${deadline.id}`, icon: 'icons/icon-192.png' }); } catch {}
+  }
+  // Fire brutal in-app alarm
+  alarmStart(deadline);
+  showToast(`🔔 ${deadline.title}`, 3200);
+};
+// Replace global ref so processDueReminders calls our version
+notifyReminder = window.notifyReminder;
+
+/* ── TODAY'S TERMINI hero card on dashboard ───────────────────────── */
+function renderTodayTermini() {
+  const card = document.getElementById('todayTerminiCard');
+  const list = document.getElementById('todayTerminiList');
+  const cnt = document.getElementById('todayTerminiCount');
+  if (!card || !list || !cnt) return;
+  ensureMusicState();
+  const today = localDateString();
+  const items = (state.deadlines || []).filter(d => d.date === today)
+    .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+  cnt.textContent = String(items.length);
+  if (!items.length) {
+    list.innerHTML = `<div class="today-termini-empty">Няма термини за днес · Натисни ⏰ Срок за нов</div>`;
+    return;
+  }
+  list.innerHTML = items.map(dl => `
+    <div class="today-termin-row" data-tt-id="${escHtml(dl.id)}">
+      <div class="today-termin-bar" style="background:${escHtml(dl.color || '#d4a843')}"></div>
+      <span class="today-termin-time">${escHtml(dl.time || '—')}</span>
+      <span class="today-termin-title">${escHtml(dl.title)}</span>
+      ${dl.reminderEnabled ? `<span class="today-termin-bell" title="${dl.alarmTrackId ? 'MP3 аларма' : 'Системен звук'}">${dl.alarmTrackId ? '🎵' : '🔔'}</span>` : ''}
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-tt-id]').forEach(row => row.addEventListener('click', () => {
+    const id = row.dataset.ttId;
+    const dl = (state.deadlines || []).find(x => x.id === id);
+    if (dl) openDeadlineSheet(dl.date, dl.id);
+  }));
+}
+
+/* ── HOOK INTO DASHBOARD ──────────────────────────────────────────── */
+const __origRenderDashboard = renderDashboard;
+renderDashboard = function() {
+  __origRenderDashboard.apply(this, arguments);
+  try { renderTodayTermini(); } catch (e) { console.warn('renderTodayTermini', e); }
+};
+
+/* ── HOOK INTO fillDeadlineSheet so alarm select populates ────────── */
+const __origFillDeadlineSheet = fillDeadlineSheet;
+fillDeadlineSheet = function(deadline, dateStr) {
+  __origFillDeadlineSheet.apply(this, arguments);
+  try {
+    ensureMusicState();
+    const sel = document.getElementById('deadlineAlarmTrack');
+    if (!sel) return;
+    sel.innerHTML = ['<option value="">— Системен бийп —</option>']
+      .concat(state.tracks.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.title)}</option>`))
+      .join('');
+    sel.value = (deadline?.alarmTrackId ?? state.alarmTrackId) || '';
+  } catch (e) { console.warn('fillDeadlineSheet alarm hook', e); }
+};
+
+/* ── HOOK INTO showTab so 'music' renders ─────────────────────────── */
+const __origShowTab = showTab;
+showTab = function(tab) {
+  __origShowTab.apply(this, arguments);
+  if (tab === 'music') {
+    try { renderMusicTab(); } catch (e) { console.warn('renderMusicTab', e); }
+  }
+};
+
+/* ── DEADLINE SAVE — persist alarmTrackId ─────────────────────────── */
+const __origSaveDeadline = saveDeadlineFromSheet;
+saveDeadlineFromSheet = function() {
+  __origSaveDeadline.apply(this, arguments);
+  // After original save, attach alarmTrackId from the sheet to the saved deadline
+  try {
+    const sel = document.getElementById('deadlineAlarmTrack');
+    if (!sel) return;
+    const editId = document.getElementById('deadlineEditId').value;
+    if (!editId) return;
+    const idx = (state.deadlines || []).findIndex(x => x.id === editId);
+    if (idx < 0) return;
+    state.deadlines[idx].alarmTrackId = sel.value || '';
+    saveState();
+    renderDashboard();
+  } catch (e) { console.warn('alarmTrackId persist', e); }
+};
+
+/* ── INIT MUSIC EVENT LISTENERS ───────────────────────────────────── */
+function initMusicListeners() {
+  ensureMusicState();
+  // Upload
+  document.getElementById('mpUploadBtn')?.addEventListener('click', () => document.getElementById('mpFileInput')?.click());
+  document.getElementById('mpFileInput')?.addEventListener('change', (e) => { mpAddTracksFromFiles(e.target.files); e.target.value = ''; });
+  // URL download
+  document.getElementById('mpUrlBtn')?.addEventListener('click', () => { const v = document.getElementById('mpUrlInput')?.value || ''; mpDownloadFromUrl(v); });
+  document.getElementById('mpUrlInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { mpDownloadFromUrl(e.target.value); } });
+  // Record
+  document.getElementById('mpRecordBtn')?.addEventListener('click', () => mpToggleRecording());
+  // Transport
+  document.getElementById('mpPlayPauseBtn')?.addEventListener('click', () => mpTogglePlayPause());
+  document.getElementById('mpNextBtn')?.addEventListener('click', () => mpNext(false));
+  document.getElementById('mpPrevBtn')?.addEventListener('click', () => mpPrev());
+  document.getElementById('mpShuffleBtn')?.addEventListener('click', () => { state.musicPrefs.shuffle = !state.musicPrefs.shuffle; saveState(); mpRenderControls(); });
+  document.getElementById('mpRepeatBtn')?.addEventListener('click', () => { const m = state.musicPrefs.repeat || 'off'; state.musicPrefs.repeat = m === 'off' ? 'all' : m === 'all' ? 'one' : 'off'; saveState(); mpRenderControls(); });
+  document.getElementById('mpSpeedBtn')?.addEventListener('click', () => mpCycleSpeed());
+  document.getElementById('mpEqBtn')?.addEventListener('click', () => mpToggleEqPanel());
+  // Volume
+  document.getElementById('mpVolume')?.addEventListener('input', (e) => { const v = Number(e.target.value) / 100; state.musicPrefs.volume = v; if (musicEngine.audio) musicEngine.audio.volume = v; saveState(); });
+  // Progress seek
+  const bar = document.getElementById('mpProgressBar');
+  if (bar) {
+    bar.addEventListener('click', mpSeekFromEvent);
+    bar.addEventListener('touchstart', (e) => mpSeekFromEvent(e), { passive: true });
+  }
+  // EQ sliders
+  const wireEq = (id, key) => document.getElementById(id)?.addEventListener('input', (e) => { state.musicPrefs.eq[key] = Number(e.target.value); saveState(); mpApplyEqUi(); });
+  wireEq('mpEqBass', 'bass');
+  wireEq('mpEqMid', 'mid');
+  wireEq('mpEqTreble', 'treble');
+  document.querySelectorAll('.mp-eq-preset').forEach(b => b.addEventListener('click', () => mpApplyEqPreset(b.dataset.eq)));
+  // Library search/sort
+  document.getElementById('mpLibSearch')?.addEventListener('input', (e) => { musicEngine.filterQuery = e.target.value; mpRenderLibrary(); });
+  document.getElementById('mpLibSort')?.addEventListener('change', (e) => { musicEngine.sortBy = e.target.value; mpRenderLibrary(); });
+  document.getElementById('mpClearBtn')?.addEventListener('click', async () => {
+    if (!state.tracks.length) return;
+    if (!confirm(`Изтрий всички ${state.tracks.length} записа? (терминните аларми ще паднат към системния звук)`)) return;
+    for (const t of [...state.tracks]) await mpDeleteTrack(t.id);
+  });
+  // Default alarm
+  document.getElementById('mpDefaultAlarm')?.addEventListener('change', (e) => { state.alarmTrackId = e.target.value || ''; saveState(); mpRenderStats(); mpRenderLibrary(); showToast('🔔 Стандартна аларма обновена'); });
+  document.getElementById('mpDefaultAlarmTest')?.addEventListener('click', () => alarmStart({ id: 'preview', title: 'Тест аларма', date: localDateString(), time: '', note: 'Натисни ИЗКЛЮЧИ', color: '#fcd34d', alarmTrackId: state.alarmTrackId }));
+  // Deadline alarm preview
+  document.getElementById('deadlineAlarmPreviewBtn')?.addEventListener('click', () => {
+    const sel = document.getElementById('deadlineAlarmTrack');
+    alarmStart({ id: 'preview', title: 'Тест аларма', date: localDateString(), time: '', note: '—', color: '#fcd34d', alarmTrackId: sel?.value || '' });
+  });
+  // Alarm overlay actions
+  document.getElementById('alarmStopBtn')?.addEventListener('click', () => alarmStop());
+  document.getElementById('alarmSnoozeBtn')?.addEventListener('click', () => alarmSnooze());
+}
+
+// Hook into init
+document.addEventListener('DOMContentLoaded', () => { setTimeout(initMusicListeners, 50); });

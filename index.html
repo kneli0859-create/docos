@@ -275,6 +275,15 @@
             </button>
           </div>
 
+          <!-- TODAY'S TERMINI — hero card so appointments POP -->
+          <div class="today-termini-card" id="todayTerminiCard">
+            <div class="today-termini-head">
+              <span class="today-termini-title">⚡ ДНЕС · термини</span>
+              <span class="today-termini-count" id="todayTerminiCount">0</span>
+            </div>
+            <div class="today-termini-list" id="todayTerminiList"></div>
+          </div>
+
           <!-- Calendar — brutal terminal style with month nav -->
           <div class="hacker-block hk-cal" id="hkCalBlock">
             <div class="hk-header">
@@ -745,20 +754,176 @@
         </div>
       </section>
 
+      <!-- MUSIC PLAYER (BRUTAL) -->
+      <section class="screen" id="screen-music">
+        <div class="screen-scroll">
+
+          <!-- Hacker-style header for the player -->
+          <div class="hacker-block hk-music-head">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/музика</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd" id="musicCmdLbl">player --boot</span>
+              <span class="hk-led ok"></span>
+            </div>
+            <div class="mp-stat-row">
+              <div class="mp-stat"><span class="mp-stat-k">tracks</span><span class="mp-stat-v" id="mpStatCount">0</span></div>
+              <div class="mp-stat"><span class="mp-stat-k">size</span><span class="mp-stat-v" id="mpStatSize">0 MB</span></div>
+              <div class="mp-stat"><span class="mp-stat-k">alarm</span><span class="mp-stat-v warn" id="mpStatAlarm">—</span></div>
+              <div class="mp-stat"><span class="mp-stat-k">eng</span><span class="mp-stat-v" id="mpStatEng">idle</span></div>
+            </div>
+          </div>
+
+          <!-- Now playing — brutal cockpit -->
+          <div class="hacker-block mp-now" id="mpNowBlock">
+            <div class="mp-now-art" id="mpNowArt">
+              <div class="mp-now-vinyl" id="mpNowVinyl">
+                <div class="mp-now-vinyl-core">♪</div>
+              </div>
+            </div>
+            <div class="mp-now-meta">
+              <div class="mp-now-title" id="mpNowTitle">— Няма избран запис —</div>
+              <div class="mp-now-sub" id="mpNowSub">Качи MP3 за да започнеш</div>
+              <canvas class="mp-vis" id="mpVis" width="800" height="120"></canvas>
+              <div class="mp-progress-wrap">
+                <div class="mp-progress-bar" id="mpProgressBar">
+                  <div class="mp-progress-fill" id="mpProgressFill"></div>
+                  <div class="mp-progress-thumb" id="mpProgressThumb"></div>
+                </div>
+                <div class="mp-time-row">
+                  <span class="mp-time" id="mpTimeCur">0:00</span>
+                  <span class="mp-time" id="mpTimeDur">0:00</span>
+                </div>
+              </div>
+              <div class="mp-controls-row">
+                <button class="mp-ctrl" id="mpShuffleBtn" title="Случаен ред">🔀</button>
+                <button class="mp-ctrl" id="mpPrevBtn" title="Предишен">⏮</button>
+                <button class="mp-ctrl mp-ctrl-main" id="mpPlayPauseBtn" title="Плей">▶</button>
+                <button class="mp-ctrl" id="mpNextBtn" title="Следващ">⏭</button>
+                <button class="mp-ctrl" id="mpRepeatBtn" title="Повтори">🔁</button>
+              </div>
+              <div class="mp-controls-row mp-controls-row--sec">
+                <span class="mp-vol-ico">🔊</span>
+                <input type="range" class="mp-volume" id="mpVolume" min="0" max="100" value="80"/>
+                <button class="mp-ctrl mp-ctrl-pill" id="mpEqBtn" title="Еквалайзер">EQ</button>
+                <button class="mp-ctrl mp-ctrl-pill" id="mpSpeedBtn" title="Скорост">1.0x</button>
+              </div>
+              <!-- EQ panel -->
+              <div class="mp-eq" id="mpEqPanel" style="display:none">
+                <div class="mp-eq-row">
+                  <label>Бас</label>
+                  <input type="range" id="mpEqBass" min="-12" max="12" value="0"/>
+                  <span id="mpEqBassVal">0 dB</span>
+                </div>
+                <div class="mp-eq-row">
+                  <label>Mid</label>
+                  <input type="range" id="mpEqMid" min="-12" max="12" value="0"/>
+                  <span id="mpEqMidVal">0 dB</span>
+                </div>
+                <div class="mp-eq-row">
+                  <label>Високи</label>
+                  <input type="range" id="mpEqTreble" min="-12" max="12" value="0"/>
+                  <span id="mpEqTrebleVal">0 dB</span>
+                </div>
+                <div class="mp-eq-presets">
+                  <button class="mp-eq-preset" data-eq="flat">Flat</button>
+                  <button class="mp-eq-preset" data-eq="bass">Bass+</button>
+                  <button class="mp-eq-preset" data-eq="vocal">Vocal</button>
+                  <button class="mp-eq-preset" data-eq="club">Club</button>
+                  <button class="mp-eq-preset" data-eq="brutal">BRUTAL</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upload + URL download -->
+          <div class="hacker-block mp-acquire">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/import</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd">add --source=file|url</span>
+              <span class="hk-led ok"></span>
+            </div>
+            <div class="mp-acq-row">
+              <button class="mp-big-btn" id="mpUploadBtn">
+                <span class="mp-big-ico">📤</span>
+                <span class="mp-big-lbl">Качи MP3</span>
+                <span class="mp-big-sub">или WAV / M4A / OGG</span>
+              </button>
+              <button class="mp-big-btn" id="mpRecordBtn">
+                <span class="mp-big-ico">🎙</span>
+                <span class="mp-big-lbl">Запиши</span>
+                <span class="mp-big-sub">от микрофона</span>
+              </button>
+            </div>
+            <div class="mp-url-row">
+              <input type="url" class="mp-url-input" id="mpUrlInput" placeholder="Поставe линк (.mp3 / YouTube / SoundCloud / Spotify)" inputmode="url" autocomplete="off"/>
+              <button class="mp-url-btn" id="mpUrlBtn">⬇ ДРЪПНИ</button>
+            </div>
+            <div class="mp-url-hint">▸ Директни <code>.mp3</code> линкове свалят моментално · ▸ YouTube/Spotify/SoundCloud → отварят се през <a href="https://cobalt.tools" target="_blank" rel="noopener">cobalt.tools</a> (натисни ⬇ — ще се отвори за валиден download).</div>
+            <input type="file" id="mpFileInput" accept="audio/*" multiple style="display:none"/>
+          </div>
+
+          <!-- Library -->
+          <div class="hacker-block mp-lib">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/библиотека</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd">ls -la --music</span>
+              <span class="hk-led ok"></span>
+              <button class="hk-header-btn" id="mpClearBtn" title="Изтрий всички">🧹</button>
+            </div>
+            <div class="mp-lib-search-row">
+              <input type="search" class="mp-lib-search" id="mpLibSearch" placeholder="🔍 търси в библиотеката..." autocomplete="off"/>
+              <select class="mp-lib-sort" id="mpLibSort">
+                <option value="newest">Най-нови</option>
+                <option value="name">По име</option>
+                <option value="duration">По дължина</option>
+              </select>
+            </div>
+            <div class="mp-lib-list" id="mpLibList"></div>
+            <div class="mp-lib-empty" id="mpLibEmpty">
+              <div class="empty-icon">🎧</div>
+              <div class="empty-text">Празна библиотека</div>
+              <div class="empty-sub">Качи MP3 за да започнеш. Всеки запис може да стане звук на аларма за термин.</div>
+            </div>
+          </div>
+
+          <!-- Default alarm config -->
+          <div class="hacker-block mp-alarm-cfg">
+            <div class="hk-header">
+              <span class="hk-prompt">root@docos</span><span class="hk-colon">:</span><span class="hk-path">~/alarm</span><span class="hk-dollar">$</span>
+              <span class="hk-cmd">set --default-tone</span>
+              <span class="hk-led warn"></span>
+            </div>
+            <div class="mp-alarm-row">
+              <label class="mp-alarm-lbl">Стандартен звук за всички термини</label>
+              <select class="mp-alarm-select" id="mpDefaultAlarm">
+                <option value="">— Системен бийп —</option>
+              </select>
+              <button class="mp-alarm-test" id="mpDefaultAlarmTest">▶ Тест</button>
+            </div>
+            <div class="mp-alarm-hint">Може да зададеш различен звук на всеки термин в календара (Начало → ⏰ Срок).</div>
+          </div>
+
+        </div>
+      </section>
+
     </main>
 
     <!-- BOTTOM DOCK -->
-    <nav class="bottom-dock" id="bottomDock">
+    <nav class="bottom-dock bottom-dock--6" id="bottomDock">
       <button class="dock-btn active" data-tab="dashboard" data-fx="home">
         <span class="dock-icon">🏠</span>
         <span class="dock-label">Начало</span>
       </button>
       <button class="dock-btn" data-tab="documents" data-fx="documents">
         <span class="dock-icon">📁</span>
-        <span class="dock-label">Документи</span>
+        <span class="dock-label">Док.</span>
       </button>
       <button class="dock-btn dock-center" data-tab="scan" data-fx="scan">
         <span class="dock-icon">＋</span>
+      </button>
+      <button class="dock-btn" data-tab="music" data-fx="agent">
+        <span class="dock-icon">🎵</span>
+        <span class="dock-label">Музика</span>
       </button>
       <button class="dock-btn" data-tab="cinema" data-fx="agent">
         <span class="dock-icon">🎬</span>
@@ -945,7 +1110,19 @@
             </div>
           </div>
         </div>
-        <div class="dl-reminder-hint" id="deadlineReminderHint">Локално известие + системно push при PWA режим.</div>
+        <div class="dl-reminder-opt-row" id="deadlineAlarmRow">
+          <div class="dl-field" style="flex:1">
+            <div class="dl-field-body">
+              <label class="dl-field-label">🎵 Звук на алармата</label>
+              <select class="dl-field-input" id="deadlineAlarmTrack">
+                <option value="">— Стандартен бийп —</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" class="dl-notif-btn" id="deadlineAlarmPreviewBtn" title="Чуй">▶ Тест</button>
+        </div>
+        <div class="dl-reminder-hint" id="deadlineReminderHint">Локално известие + системно push при PWA режим. Звукът свири дори при заключен екран (PWA).</div>
+        <div class="dl-reminder-hint" id="deadlineAlarmHint" style="margin-top:.35rem">▸ Качи MP3 в раздел <b>Музика</b> и ще можеш да го избереш тук.</div>
       </div>
     </div>
 
@@ -1101,6 +1278,23 @@
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat.js"></script>
   <script>try{dayjs.extend(window.dayjs_plugin_customParseFormat);}catch(e){} window.dispatchEvent(new Event('docos:dayjs-ready'));</script>
+  <!-- ⏰ FULL-SCREEN ALARM OVERLAY -->
+  <div class="alarm-overlay" id="alarmOverlay" style="display:none">
+    <div class="alarm-bg"></div>
+    <div class="alarm-card">
+      <div class="alarm-pulse"></div>
+      <div class="alarm-clock" id="alarmClock">00:00</div>
+      <div class="alarm-icon">⏰</div>
+      <div class="alarm-title" id="alarmTitle">Термин</div>
+      <div class="alarm-sub" id="alarmSub">—</div>
+      <div class="alarm-track" id="alarmTrackName">▸ Системен бийп</div>
+      <div class="alarm-actions">
+        <button class="alarm-btn alarm-btn-snooze" id="alarmSnoozeBtn">😴 Отложи 5 мин</button>
+        <button class="alarm-btn alarm-btn-stop" id="alarmStopBtn">✕ ИЗКЛЮЧИ</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
