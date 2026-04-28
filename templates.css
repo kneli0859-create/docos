@@ -856,3 +856,264 @@ html.template-switching body::after {
   background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(40,0,80,1) 100%);
   border-top: 2px solid var(--accent);
 }
+
+/* ════════════════════════════════════════════════════════════════
+   DOCK POLISH — per-template, чисто подравнено, професионално
+   Всеки шаблон със собствена личност, но вътрешно консистентно.
+   Селекторите са с висока специфичност + !important за да печелят
+   срещу heavy 3D-то в styles.css и старите блокове по-горе.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Equal-width разпределение за всички non-classic темплейти */
+html[data-template="hacker"] .bottom-dock,
+html[data-template="cinema"] .bottom-dock,
+html[data-template="cockpit"] .bottom-dock,
+html[data-template="zen"] .bottom-dock,
+html[data-template="brutalist"] .bottom-dock,
+html[data-template="arcade"] .bottom-dock {
+  justify-content: space-around !important;
+}
+html[data-template="hacker"] .dock-btn:not(.dock-center),
+html[data-template="cinema"] .dock-btn:not(.dock-center),
+html[data-template="cockpit"] .dock-btn:not(.dock-center),
+html[data-template="zen"] .dock-btn:not(.dock-center),
+html[data-template="brutalist"] .dock-btn:not(.dock-center),
+html[data-template="arcade"] .dock-btn:not(.dock-center) {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  padding: 7px 4px !important;
+  gap: 5px !important;
+}
+
+/* Изчистваме default-ните ::before / ::after fluff (long shadow + glass) */
+html[data-template="hacker"] .dock-btn::before,
+html[data-template="hacker"] .dock-btn::after,
+html[data-template="cinema"] .dock-btn::before,
+html[data-template="cinema"] .dock-btn::after,
+html[data-template="cockpit"] .dock-btn::before,
+html[data-template="cockpit"] .dock-btn::after,
+html[data-template="zen"] .dock-btn::before,
+html[data-template="zen"] .dock-btn::after,
+html[data-template="brutalist"] .dock-btn::before,
+html[data-template="brutalist"] .dock-btn::after,
+html[data-template="arcade"] .dock-btn::before,
+html[data-template="arcade"] .dock-btn::after {
+  display: none !important;
+}
+
+/* Кил на heavy active background + box-shadow върху самия button */
+html[data-template="hacker"] .dock-btn.active:not(.dock-center),
+html[data-template="cinema"] .dock-btn.active:not(.dock-center),
+html[data-template="cockpit"] .dock-btn.active:not(.dock-center),
+html[data-template="zen"] .dock-btn.active:not(.dock-center),
+html[data-template="brutalist"] .dock-btn.active:not(.dock-center),
+html[data-template="arcade"] .dock-btn.active:not(.dock-center) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* Кил на default icon scale + drop-shadow на active */
+html[data-template="hacker"] .dock-btn.active:not(.dock-center) .dock-icon,
+html[data-template="cinema"] .dock-btn.active:not(.dock-center) .dock-icon,
+html[data-template="cockpit"] .dock-btn.active:not(.dock-center) .dock-icon,
+html[data-template="zen"] .dock-btn.active:not(.dock-center) .dock-icon,
+html[data-template="brutalist"] .dock-btn.active:not(.dock-center) .dock-icon,
+html[data-template="arcade"] .dock-btn.active:not(.dock-center) .dock-icon {
+  filter: none !important;
+  transform: none !important;
+}
+
+/* Локирани размери на иконите — еднакви във всеки темплейт */
+html[data-template="hacker"] .dock-icon,
+html[data-template="cinema"] .dock-icon,
+html[data-template="cockpit"] .dock-icon,
+html[data-template="zen"] .dock-icon,
+html[data-template="brutalist"] .dock-icon,
+html[data-template="arcade"] .dock-icon {
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 19px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  transition: background 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
+}
+
+/* Заключени labels — еднаква типография в темплейта */
+html[data-template="hacker"] .dock-label,
+html[data-template="cinema"] .dock-label,
+html[data-template="cockpit"] .dock-label,
+html[data-template="zen"] .dock-label,
+html[data-template="brutalist"] .dock-label,
+html[data-template="arcade"] .dock-label {
+  font-size: 10px !important;
+  line-height: 1 !important;
+  text-shadow: none !important;
+  white-space: nowrap;
+}
+
+/* Center FAB — пропорционален, не огромен */
+html[data-template="hacker"] .dock-btn.dock-center .dock-icon,
+html[data-template="cinema"] .dock-btn.dock-center .dock-icon,
+html[data-template="cockpit"] .dock-btn.dock-center .dock-icon,
+html[data-template="zen"] .dock-btn.dock-center .dock-icon,
+html[data-template="brutalist"] .dock-btn.dock-center .dock-icon,
+html[data-template="arcade"] .dock-btn.dock-center .dock-icon {
+  width: 48px !important;
+  height: 48px !important;
+  font-size: 24px !important;
+  font-weight: 300 !important;
+}
+
+/* ── 1. HACKER — terminal cells, accent-on-active ── */
+html[data-template="hacker"] .dock-icon {
+  border-radius: 0 !important;
+  border-color: rgba(255,255,255,0.06) !important;
+  color: var(--accent) !important;
+}
+html[data-template="hacker"] .dock-btn.active:not(.dock-center) .dock-icon {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #000 !important;
+  box-shadow: 0 0 12px var(--accent-glow) !important;
+}
+html[data-template="hacker"] .dock-btn.active:not(.dock-center) .dock-label {
+  color: var(--accent) !important;
+}
+html[data-template="hacker"] .dock-btn.dock-center .dock-icon {
+  border-radius: 0 !important;
+  background: var(--accent) !important;
+  color: #000 !important;
+  border: 1px solid var(--accent) !important;
+  box-shadow: 0 0 18px var(--accent-glow) !important;
+}
+
+/* ── 2. CINEMA — soft glass pill, премиум ── */
+html[data-template="cinema"] .dock-icon {
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.04) !important;
+}
+html[data-template="cinema"] .dock-btn.active:not(.dock-center) .dock-icon {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  color: #fff !important;
+}
+html[data-template="cinema"] .dock-btn.active:not(.dock-center) .dock-label {
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+html[data-template="cinema"] .dock-btn.dock-center .dock-icon {
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, rgba(255,255,255,0.20), rgba(255,255,255,0.06)) !important;
+  border: 1px solid rgba(255,255,255,0.22) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12) !important;
+}
+
+/* ── 3. COCKPIT — HUD segments, neon edge на active ── */
+html[data-template="cockpit"] .dock-icon {
+  border-radius: 4px !important;
+  background: rgba(255,255,255,0.02) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  color: rgba(255,255,255,0.65) !important;
+  font-family: 'JetBrains Mono', monospace;
+}
+html[data-template="cockpit"] .dock-btn.active:not(.dock-center) .dock-icon {
+  background: var(--accent-soft) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+  box-shadow: 0 0 14px var(--accent-glow), inset 0 0 8px var(--accent-soft) !important;
+}
+html[data-template="cockpit"] .dock-btn.active:not(.dock-center) .dock-label {
+  color: var(--accent) !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase;
+}
+html[data-template="cockpit"] .dock-btn.dock-center .dock-icon {
+  border-radius: 4px !important;
+  background: var(--accent) !important;
+  color: #000 !important;
+  border: 2px solid var(--accent) !important;
+  box-shadow: 0 0 18px var(--accent-glow), inset 0 0 8px rgba(255,255,255,0.2) !important;
+}
+
+/* ── 4. ZEN — минимал; dot underline на active ── */
+html[data-template="zen"] .dock-icon {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: rgba(255,255,255,0.55) !important;
+}
+html[data-template="zen"] .dock-btn.active:not(.dock-center) .dock-icon {
+  background: transparent !important;
+  color: var(--accent) !important;
+}
+html[data-template="zen"] .dock-btn.active:not(.dock-center) .dock-label {
+  color: var(--accent) !important;
+  font-weight: 400 !important;
+}
+html[data-template="zen"] .dock-btn.dock-center .dock-icon {
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: 1px solid var(--accent) !important;
+  color: var(--accent) !important;
+  font-weight: 200 !important;
+  box-shadow: none !important;
+}
+
+/* ── 5. BRUTALIST — pure black/white, sharp inversion ── */
+html[data-template="brutalist"] .dock-icon {
+  border-radius: 0 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--bg) !important;
+}
+html[data-template="brutalist"] .dock-btn.active:not(.dock-center) .dock-icon {
+  background: var(--accent) !important;
+  border: 2px solid var(--bg) !important;
+  color: var(--bg) !important;
+  border-radius: 0 !important;
+}
+html[data-template="brutalist"] .dock-btn.active:not(.dock-center) .dock-label {
+  color: var(--accent) !important;
+  font-weight: 900 !important;
+}
+html[data-template="brutalist"] .dock-btn.dock-center .dock-icon {
+  border-radius: 0 !important;
+  background: var(--accent) !important;
+  border: 3px solid var(--bg) !important;
+  color: var(--bg) !important;
+  font-weight: 900 !important;
+  box-shadow: none !important;
+}
+
+/* ── 6. ARCADE — neon кръгове с pulsing glow на active ── */
+html[data-template="arcade"] .dock-icon {
+  border-radius: 50% !important;
+  background: rgba(0,0,0,0.4) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+html[data-template="arcade"] .dock-btn.active:not(.dock-center) .dock-icon {
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.25) 0%, transparent 50%),
+    var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #000 !important;
+  box-shadow: 0 0 14px var(--accent-glow), 0 0 28px var(--accent-glow) !important;
+}
+html[data-template="arcade"] .dock-btn.active:not(.dock-center) .dock-label {
+  color: var(--accent) !important;
+  text-shadow: 0 0 8px var(--accent-glow) !important;
+  font-weight: 700 !important;
+}
+html[data-template="arcade"] .dock-btn.dock-center .dock-icon {
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.30) 0%, transparent 50%),
+    var(--accent) !important;
+  color: #000 !important;
+  border: 2px solid var(--accent) !important;
+  box-shadow: 0 0 16px var(--accent-glow), 0 0 36px var(--accent-glow) !important;
+  font-weight: 700 !important;
+}
