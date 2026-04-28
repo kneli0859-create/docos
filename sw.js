@@ -1,6 +1,10 @@
-const DOCOS_SHELL_CACHE = 'docos-shell-v40';
+const DOCOS_SHELL_CACHE = 'docos-shell-v41';
 const DOCOS_RUNTIME_CACHE = 'docos-runtime-v8';
-const DOCOS_CACHE_PREFIXES = ['docos-shell-', 'docos-runtime-'];
+const DOCOS_VIDEO_CACHE = 'docos-video-v1';
+const DOCOS_CACHE_PREFIXES = ['docos-shell-', 'docos-runtime-', 'docos-video-'];
+const VIDEO_SEG_RE = /\.(m3u8|ts|m4s|mpd|init)(\?|$)/i;
+const VIDEO_MAX_ENTRIES = 80;
+const VIDEO_MAX_SEGMENT_BYTES = 6 * 1024 * 1024;
 
 const DOCOS_ASSETS = [
   './',
@@ -74,6 +78,58 @@ async function shellCacheFirst(request) {
   }
 }
 
+async function trimCache(cacheName, max) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length <= max) return;
+  for (let i = 0; i < keys.length - max; i++) {
+    await cache.delete(keys[i]);
+  }
+}
+
+// Range-aware video segment cache (HLS / DASH friendly).
+// Strategy: cache-first for whole-segment GETs without Range; pass-through
+// for Range/byte requests (browser handles partial fetches via network).
+// Manifests get short SWR so playlists update.
+async function videoSegmentCache(request) {
+  const url = new URL(request.url);
+  const isManifest = /\.m3u8(\?|$)/i.test(url.pathname);
+  const hasRange = request.headers.has('range');
+
+  // Range/byte requests → straight network (don't poison cache with partials)
+  if (hasRange) return fetch(request);
+
+  const cache = await caches.open(DOCOS_VIDEO_CACHE);
+  if (isManifest) {
+    // SWR — fast cached return + background refresh
+    const cached = await cache.match(request);
+    const networkPromise = fetch(request).then(resp => {
+      if (resp && (resp.ok || resp.type === 'opaque')) {
+        cache.put(request, resp.clone()).catch(() => {});
+      }
+      return resp;
+    }).catch(() => null);
+    if (cached) {
+      networkPromise.catch(() => {});
+      return cached;
+    }
+    const fresh = await networkPromise;
+    return fresh || fetch(request);
+  }
+
+  // Segments → cache-first, network fill, size-bounded
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const fresh = await fetch(request);
+  if (fresh && (fresh.ok || fresh.type === 'opaque')) {
+    const len = parseInt(fresh.headers.get('content-length') || '0', 10);
+    if (!len || len <= VIDEO_MAX_SEGMENT_BYTES) {
+      cache.put(request, fresh.clone()).then(() => trimCache(DOCOS_VIDEO_CACHE, VIDEO_MAX_ENTRIES)).catch(() => {});
+    }
+  }
+  return fresh;
+}
+
 async function runtimeStaleWhileRevalidate(request) {
   const cache = await caches.open(DOCOS_RUNTIME_CACHE);
   const cached = await cache.match(request);
@@ -101,7 +157,7 @@ self.addEventListener('activate', event => {
     const keys = await caches.keys();
     await Promise.all(
       keys
-        .filter(key => DOCOS_CACHE_PREFIXES.some(prefix => key.startsWith(prefix)) && ![DOCOS_SHELL_CACHE, DOCOS_RUNTIME_CACHE].includes(key))
+        .filter(key => DOCOS_CACHE_PREFIXES.some(prefix => key.startsWith(prefix)) && ![DOCOS_SHELL_CACHE, DOCOS_RUNTIME_CACHE, DOCOS_VIDEO_CACHE].includes(key))
         .map(key => caches.delete(key))
     );
     await self.clients.claim();
@@ -132,6 +188,12 @@ self.addEventListener('fetch', event => {
 
   if (DOCOS_RUNTIME_SET.has(req.url)) {
     event.respondWith(runtimeStaleWhileRevalidate(req));
+    return;
+  }
+
+  // Cross-origin video segments / manifests → cache-first SWR
+  if (VIDEO_SEG_RE.test(url.pathname)) {
+    event.respondWith(videoSegmentCache(req).catch(() => fetch(req)));
   }
 });
 

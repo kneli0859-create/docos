@@ -7386,6 +7386,118 @@ const cinemaState = {
   resumePositions: {} // id → seconds
 };
 
+/* ─── Cinema Turbo (v5.3) — net-aware streaming ─────────────────────── */
+
+function cinemaDetectNet() {
+  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!c) return { tier: 'fast', label: '', dl: 10, eff: '4g' };
+  const eff = c.effectiveType || '4g';
+  const dl = typeof c.downlink === 'number' ? c.downlink : 10;
+  const saveData = !!c.saveData;
+  if (saveData || eff === 'slow-2g' || eff === '2g' || dl < 0.7) {
+    return { tier: 'slow', label: '◐ Слаб net', dl, eff };
+  }
+  if (eff === '3g' || dl < 2.5) {
+    return { tier: 'medium', label: '◓ Среден net', dl, eff };
+  }
+  return { tier: 'fast', label: '', dl, eff };
+}
+
+function cinemaUpdateNetChip() {
+  const viewport = document.getElementById('cinemaViewport');
+  if (!viewport) return;
+  let chip = document.getElementById('cinemaNetChip');
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.id = 'cinemaNetChip';
+    chip.className = 'cinema-net-chip';
+    viewport.appendChild(chip);
+  }
+  const n = cinemaDetectNet();
+  chip.textContent = n.label;
+  chip.dataset.net = n.tier;
+  chip.classList.toggle('on', !!n.label);
+}
+
+function cinemaShowVeil(on) {
+  const viewport = document.getElementById('cinemaViewport');
+  if (!viewport) return;
+  let veil = document.getElementById('cinemaLoadingVeil');
+  if (!veil) {
+    veil = document.createElement('div');
+    veil.id = 'cinemaLoadingVeil';
+    veil.className = 'cinema-loading-veil';
+    viewport.appendChild(veil);
+  }
+  veil.classList.toggle('on', !!on);
+}
+
+function cinemaHlsConfig() {
+  const n = cinemaDetectNet();
+  const cfg = {
+    enableWorker: true,
+    lowLatencyMode: false,
+    backBufferLength: 30,
+    maxBufferLength: 30,
+    maxBufferSize: 30 * 1024 * 1024,
+    startLevel: -1,
+    abrEwmaDefaultEstimate: Math.max(500_000, (n.dl || 5) * 1_000_000)
+  };
+  if (n.tier === 'slow') {
+    cfg.startLevel = 0;
+    cfg.maxBufferLength = 12;
+    cfg.maxBufferSize = 8 * 1024 * 1024;
+    cfg.backBufferLength = 10;
+  } else if (n.tier === 'medium') {
+    cfg.startLevel = 1;
+    cfg.maxBufferLength = 20;
+    cfg.maxBufferSize = 18 * 1024 * 1024;
+  }
+  return cfg;
+}
+
+function cinemaPrefetchNext() {
+  try {
+    const idx = cinemaState.currentIndex + 1;
+    const next = cinemaState.playlist[idx];
+    if (!next || !next.blobUrl) return;
+    // Skip blob: URLs (already in IndexedDB) and skip on weak net
+    if (next.blobUrl.startsWith('blob:')) return;
+    if (cinemaDetectNet().tier === 'slow') return;
+    const ric = window.requestIdleCallback || (cb => setTimeout(cb, 1500));
+    ric(() => {
+      const sel = `link[data-cinema-prefetch="${idx}"]`;
+      if (document.querySelector(sel)) return;
+      // Clean up any old prefetch links first (keep DOM tidy)
+      document.querySelectorAll('link[data-cinema-prefetch]').forEach(l => l.remove());
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'video';
+      link.href = next.blobUrl;
+      link.dataset.cinemaPrefetch = String(idx);
+      try { link.crossOrigin = 'anonymous'; } catch (_) {}
+      document.head.appendChild(link);
+      setTimeout(() => { try { link.remove(); } catch (_) {} }, 90_000);
+    });
+  } catch (_) {}
+}
+
+// React to connection changes mid-playback
+(function cinemaWatchNet() {
+  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!c || !c.addEventListener) return;
+  c.addEventListener('change', () => {
+    cinemaUpdateNetChip();
+    // If HLS is running, push a level cap matching the new tier
+    if (cinemaHlsInstance) {
+      const cfg = cinemaHlsConfig();
+      if (typeof cfg.startLevel === 'number' && cfg.startLevel >= 0) {
+        try { cinemaHlsInstance.nextLevel = cfg.startLevel; } catch (_) {}
+      }
+    }
+  });
+})();
+
 function renderCinemaTab() {
   const video = document.getElementById('cinemaVideo');
   const empty = document.getElementById('cinemaEmpty');
@@ -7518,8 +7630,20 @@ function cinemaPlayIndex(idx) {
   const controls = document.getElementById('cinemaControls');
   if (controls) controls.style.display = '';
 
+  // Connection-aware preload: lighter on weak nets so first frame paints sooner
+  const net = cinemaDetectNet();
+  video.preload = net.tier === 'slow' ? 'metadata' : 'auto';
+  video.playsInline = true;
   video.src = item.blobUrl;
   video.load();
+  cinemaShowVeil(true);
+  cinemaUpdateNetChip();
+
+  // Hide veil as soon as ANY playable data is ready (faster than loadeddata)
+  const veilOff = () => cinemaShowVeil(false);
+  video.addEventListener('canplay', veilOff, { once: true });
+  video.addEventListener('playing', veilOff, { once: true });
+  video.addEventListener('error', veilOff, { once: true });
 
   // Resume from saved position
   const savedPos = cinemaState.resumePositions[item.id];
@@ -7530,6 +7654,9 @@ function cinemaPlayIndex(idx) {
   }
 
   video.play().catch(() => {});
+
+  // Predictive prefetch the next title in the playlist (idle, net-aware)
+  cinemaPrefetchNext();
 
   const overlay = document.getElementById('cinemaOverlay');
   if (overlay) overlay.classList.add('hidden');
@@ -7856,11 +7983,19 @@ async function cinemaPlayUrlImpl(rawUrl) {
     cinemaHideIframeLoader();
     if (iframe) { iframe.src = 'about:blank'; iframe.style.display = 'none'; }
     if (video) {
+      const net = cinemaDetectNet();
       video.style.display = '';
       video.crossOrigin = 'anonymous';
-      const onReady = () => { cinemaSetPlayingMode(true); };
-      const onErr = () => { cinemaSetPlayingMode(false); cinemaShowIframeFallback(rawUrl); };
-      video.addEventListener('loadeddata', onReady, { once: true });
+      video.playsInline = true;
+      // Slow-net: load metadata only; player upgrades to auto on canplay
+      video.preload = net.tier === 'slow' ? 'metadata' : 'auto';
+      cinemaShowVeil(true);
+      cinemaUpdateNetChip();
+      const onReady = () => { cinemaSetPlayingMode(true); cinemaShowVeil(false); };
+      const onErr = () => { cinemaShowVeil(false); cinemaSetPlayingMode(false); cinemaShowIframeFallback(rawUrl); };
+      // Start as soon as ANY data is playable, not the slower loadeddata
+      video.addEventListener('canplay', onReady, { once: true });
+      video.addEventListener('playing', onReady, { once: true });
       video.addEventListener('error', onErr, { once: true });
       video.src = url;
       video.load();
@@ -7868,7 +8003,6 @@ async function cinemaPlayUrlImpl(rawUrl) {
     }
     if (controls) controls.style.display = '';
     if (overlay) overlay.classList.add('hidden');
-    showToast('▶ Зареждам видео...');
     return;
   }
 
@@ -7880,32 +8014,40 @@ async function cinemaPlayUrlImpl(rawUrl) {
     if (controls) controls.style.display = '';
     if (overlay) overlay.classList.add('hidden');
 
+    cinemaShowVeil(true);
+    cinemaUpdateNetChip();
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.addEventListener('loadeddata', () => cinemaSetPlayingMode(true), { once: true });
-      video.addEventListener('error', () => { cinemaSetPlayingMode(false); cinemaShowIframeFallback(rawUrl); }, { once: true });
+      const onReady = () => { cinemaSetPlayingMode(true); cinemaShowVeil(false); };
+      video.addEventListener('canplay', onReady, { once: true });
+      video.addEventListener('playing', onReady, { once: true });
+      video.addEventListener('error', () => { cinemaShowVeil(false); cinemaSetPlayingMode(false); cinemaShowIframeFallback(rawUrl); }, { once: true });
+      video.playsInline = true;
       video.src = url;
       video.load();
       video.play().catch(() => {});
-      showToast('▶ HLS поток...');
       return;
     }
     try {
       const Hls = await cinemaLoadHlsLib();
       if (Hls.isSupported()) {
-        cinemaHlsInstance = new Hls({ enableWorker: true, lowLatencyMode: false });
+        cinemaHlsInstance = new Hls(cinemaHlsConfig());
         cinemaHlsInstance.loadSource(url);
         cinemaHlsInstance.attachMedia(video);
         cinemaHlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
           cinemaSetPlayingMode(true);
+          cinemaShowVeil(false);
           video.play().catch(() => {});
+        });
+        cinemaHlsInstance.on(Hls.Events.FRAG_LOADED, () => {
+          cinemaShowVeil(false);
         });
         cinemaHlsInstance.on(Hls.Events.ERROR, (_, data) => {
           if (data.fatal) {
+            cinemaShowVeil(false);
             cinemaSetPlayingMode(false);
             showToast('HLS грешка: ' + (data.details || 'unknown'));
           }
         });
-        showToast('▶ HLS поток...');
       } else {
         cinemaSetPlayingMode(false);
         showToast('HLS не се поддържа');

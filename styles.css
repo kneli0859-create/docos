@@ -6797,3 +6797,184 @@ html.theme-switching body::after {
 .theme-preview[data-preview="rainbow"] .theme-preview-dot {
   background: linear-gradient(135deg, #A855F7, #0EA5E9) !important;
 }
+
+/* ============================================================
+   v5.3 — UNIVERSAL GLASS + PERF BOOST
+   Глобален glass на всеки card, GPU layers, content-visibility,
+   по-леки shadows, network-aware. Поставено в края за да override-не.
+   ============================================================ */
+
+:root {
+  --glass-bg-soft: rgba(20, 22, 30, 0.42);
+  --glass-bg-card: rgba(20, 22, 30, 0.55);
+  --glass-bg-strong: rgba(15, 16, 22, 0.72);
+  --glass-blur: 18px;
+  --glass-blur-strong: 24px;
+  --glass-saturate: 1.4;
+  --glass-edge: 1px solid rgba(255, 255, 255, 0.09);
+  --glass-edge-warm: 1px solid rgba(255, 255, 255, 0.06);
+  --glass-shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.28),
+                       inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  /* Override the heavier original card-bg with glass-friendly tint */
+  --card-bg: linear-gradient(155deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.025) 48%,
+    rgba(255, 255, 255, 0.01) 100%);
+  --card-shadow: var(--glass-shadow-soft);
+}
+
+/* Universal glass on common card surfaces. Uses GPU layer (translateZ)
+   so blur compositing stays cheap. */
+.card-premium,
+.dash-storage-widget,
+.dash-stat-card,
+.empty-state,
+.intake-queue-item,
+.doc-card,
+.folder-card,
+.folder-tile,
+.cinema-playlist-item,
+.cinema-url-history-item,
+.agent-header-card,
+.agent-doc-panel,
+.agent-actions-panel,
+.agent-result-panel,
+.theme-card,
+.template-card,
+.hk-block,
+.hk-cal,
+.hk-folders,
+.hk-stack,
+.hk-cinema,
+.hk-storage,
+.modal-content,
+.bottom-sheet,
+.toast {
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: var(--glass-edge);
+  background: var(--card-bg);
+  box-shadow: var(--glass-shadow-soft);
+  transform: translateZ(0);
+  will-change: backdrop-filter;
+}
+
+/* Strong-glass for sticky/floating overlays (top bar, dock, modals) */
+.topbar,
+.dock,
+.cinema-controls,
+.cinema-overlay,
+.cinema-bar,
+.modal-backdrop {
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  background: var(--glass-bg-strong);
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: translateZ(0);
+}
+
+/* Hover lift — feels Apple-y, cheap effect */
+.card-premium:hover,
+.dash-stat-card:hover,
+.doc-card:hover,
+.folder-card:hover,
+.cinema-playlist-item:hover,
+.theme-card:hover,
+.template-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+  transform: translateY(-1px) translateZ(0);
+}
+
+/* Reduce blur cost on weak devices / battery save */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    will-change: auto !important;
+  }
+  .card-premium, .dash-storage-widget, .topbar, .dock {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+/* ---------- Render perf: skip painting off-screen lists ---------- */
+.doc-list,
+.intake-queue,
+.cinema-playlist,
+.theme-grid,
+.template-grid,
+.folders-grid {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 600px;
+}
+
+/* Image quality boost — keeps thumbnails sharp on HiDPI */
+img,
+.doc-thumb,
+.gallery-thumb,
+.cinema-poster {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+.doc-thumb img,
+.gallery-thumb img {
+  image-rendering: auto; /* photos look better with default sampling */
+}
+
+/* ---------- Cinema viewport — Netflix-style edge fade ---------- */
+.cinema-viewport,
+#cinemaViewport {
+  contain: layout paint;
+  transform: translateZ(0);
+}
+#cinemaVideo {
+  background: #000;
+  will-change: transform;
+}
+/* Soft loading veil while metadata resolves */
+.cinema-loading-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+    rgba(20, 22, 30, 0.0) 0%, rgba(0, 0, 0, 0.55) 100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 5;
+}
+.cinema-loading-veil.on { opacity: 1; }
+.cinema-loading-veil::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 38px; height: 38px;
+  margin: -19px 0 0 -19px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: cinemaSpin 0.8s linear infinite;
+}
+@keyframes cinemaSpin { to { transform: rotate(360deg); } }
+
+/* Slow-net hint chip (shown when navigator.connection is 2g/3g) */
+.cinema-net-chip {
+  position: absolute;
+  top: 10px; right: 10px;
+  z-index: 6;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  display: none;
+}
+.cinema-net-chip.on { display: inline-flex; align-items: center; gap: 5px; }
+.cinema-net-chip[data-net="slow"] { color: #FCA5A5; border-color: rgba(252, 165, 165, 0.3); }
+.cinema-net-chip[data-net="medium"] { color: #FCD34D; border-color: rgba(252, 211, 77, 0.3); }
+.cinema-net-chip[data-net="fast"] { color: #86EFAC; border-color: rgba(134, 239, 172, 0.3); }
