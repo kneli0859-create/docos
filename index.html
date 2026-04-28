@@ -22,6 +22,7 @@
 
   <link rel="stylesheet" href="styles.css"/>
   <link rel="stylesheet" href="styles-pro.css"/>
+  <link rel="stylesheet" href="templates.css"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="pro.js" defer></script>
   <script src="cloud.js" defer></script>
@@ -89,7 +90,7 @@
     <header class="topbar" id="topbar">
       <div class="topbar-left">
         <span class="app-logo">DocOS</span>
-        <span class="app-version" id="appVersionBadge">v5.1.0</span>
+        <span class="app-version" id="appVersionBadge">v5.2.0</span>
       </div>
       <div class="topbar-right">
         <button class="icon-btn" id="themeToggleBtn" title="Тема">🎨</button>
@@ -629,6 +630,11 @@
       <!-- MORE / SETTINGS -->
       <section class="screen" id="screen-more">
         <div class="screen-scroll">
+          <div class="settings-group" id="templateSection">
+            <div class="settings-group-title">Структура</div>
+            <div class="template-grid" id="templateGrid"></div>
+          </div>
+
           <div class="settings-group" id="themeSection">
             <div class="settings-group-title">Тема</div>
             <div class="theme-grid" id="themeGrid"></div>

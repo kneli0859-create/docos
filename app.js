@@ -8,8 +8,18 @@
    1. CONSTANTS & CONFIG
 ═══════════════════════════════════════════════ */
 
-const APP_VERSION = '5.1.0';
+const APP_VERSION = '5.2.0';
 const LS_KEY = 'docos_v3';
+const LAYOUTS = [
+  { id: 'classic',   label: 'Classic',   tag: 'standard'   },
+  { id: 'hacker',    label: 'Hacker',    tag: 'terminal'   },
+  { id: 'cinema',    label: 'Cinema',    tag: 'big-clock'  },
+  { id: 'cockpit',   label: 'Cockpit',   tag: 'hud'        },
+  { id: 'zen',       label: 'Zen',       tag: 'minimal'    },
+  { id: 'brutalist', label: 'Brutalist', tag: 'swiss'      },
+  { id: 'arcade',    label: 'Arcade',    tag: 'neon-3d'    },
+];
+
 const THEMES = [
   { id: 'matrix',       label: 'Matrix',    color: '#00ff41', preview: 'matrix' },
   { id: 'cyberpunk',    label: 'Cyberpunk', color: '#ff0080', preview: 'cyberpunk' },
@@ -106,6 +116,7 @@ let state = {
   alerts: [],
   quickLinks: [],
   theme: 'black-blue',
+  template: 'classic',
   currentTab: 'dashboard',
   currentFolderId: null,
   intakeQueue: [],
@@ -172,6 +183,7 @@ function loadState() {
     state.alerts = state.alerts.map(normalizeAlert).filter(Boolean);
     if (!Array.isArray(state.intakeQueue)) state.intakeQueue = [];
     if (!state.theme) state.theme = 'black-blue';
+    if (!state.template) state.template = 'classic';
   } catch (e) {
     console.warn('DocOS: state load error', e);
   }
@@ -2941,6 +2953,7 @@ async function importBackupZip(file) {
       deadlines: [],
       quickLinks: [],
       theme: 'black-blue',
+      template: 'classic',
       currentTab: 'dashboard',
       currentFolderId: null,
       intakeQueue: [],
@@ -2961,6 +2974,7 @@ async function importBackupZip(file) {
     await hydrateRuntimePreviewUrls().catch(() => {});
     await refreshStorageEstimate(true).catch(() => {});
     applyTheme(state.theme || 'black-blue');
+    applyTemplate(state.template || 'classic');
     showTab(state.currentTab || 'dashboard');
     showToast('✅ Backup импортът е готов');
   } catch (e) {
@@ -3520,6 +3534,45 @@ function applyTheme(themeId) {
   // Update active swatch
   document.querySelectorAll('.theme-swatch').forEach(el => {
     el.classList.toggle('active', el.dataset.theme === themeId);
+  });
+}
+
+function applyTemplate(templateId) {
+  document.documentElement.setAttribute('data-template', templateId);
+  state.template = templateId;
+  document.documentElement.classList.add('template-switching');
+  clearTimeout(applyTemplate._t);
+  applyTemplate._t = setTimeout(() => {
+    document.documentElement.classList.remove('template-switching');
+  }, 520);
+  document.querySelectorAll('.template-swatch').forEach(el => {
+    el.classList.toggle('active', el.dataset.template === templateId);
+  });
+}
+
+function renderTemplateGrid() {
+  const grid = document.getElementById('templateGrid');
+  if (!grid) return;
+  grid.innerHTML = LAYOUTS.map(t => `
+    <button class="template-swatch ${state.template === t.id ? 'active' : ''} tpl-${t.id}"
+            data-template="${t.id}">
+      <div class="tpl-preview tpl-pv-${t.id}">
+        <div class="tpl-pv-header"></div>
+        <div class="tpl-pv-hero"></div>
+        <div class="tpl-pv-grid">
+          <i></i><i></i><i></i><i></i>
+        </div>
+        <div class="tpl-pv-dock"></div>
+      </div>
+      <span class="template-swatch-label">${t.label}</span>
+      <span class="template-swatch-tag">${t.tag}</span>
+    </button>
+  `).join('');
+  grid.querySelectorAll('.template-swatch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      applyTemplate(btn.dataset.template);
+      saveState();
+    });
   });
 }
 
@@ -6086,6 +6139,7 @@ async function handleAgentAction(action, docId) {
 ═══════════════════════════════════════════════ */
 
 function renderMoreTab() {
+  renderTemplateGrid();
   renderThemeGrid();
   renderStorageInfo();
   document.getElementById('settingsDocCount').textContent    = state.documents.length;
@@ -8422,6 +8476,7 @@ async function init() {
   getSortableRuntime(2500).catch(() => null);
   updateNotifBadge();
   applyTheme(state.theme || 'black-blue');
+  applyTemplate(state.template || 'classic');
   initEventListeners();
   initShellScrollStability();
   initCinemaControls();

@@ -1,0 +1,858 @@
+/* ════════════════════════════════════════════════════════════════
+   DocOS — templates.css — Layout Templates Engine v5.2.0
+   ────────────────────────────────────────────────────────────────
+   Шаблоните се прилагат с data-template на <html> и работят
+   ОРТОГОНАЛНО на data-theme. Темата дава цвят/glow; шаблонът —
+   структура: размер на часовника, форма на бутоните, тип на
+   календара, layout на header-а, цялостната "личност".
+   ════════════════════════════════════════════════════════════════ */
+
+/* Switch flash — ленто пробяга по екрана при смяна на шаблон */
+html.template-switching body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, var(--accent-glow) 50%, transparent 100%);
+  animation: tplSweep 0.52s cubic-bezier(.4,.0,.2,1);
+}
+@keyframes tplSweep {
+  0%   { opacity: 0; transform: translateX(-100%); }
+  40%  { opacity: 0.9; }
+  100% { opacity: 0; transform: translateX(100%); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   1. HACKER — pure terminal, ASCII windows, monospace навсякъде
+   ════════════════════════════════════════════════════════════════ */
+[data-template="hacker"] body { font-family: 'JetBrains Mono','SF Mono',Menlo,monospace; }
+[data-template="hacker"] .topbar { border-bottom: 1px dashed var(--accent); background: rgba(0,0,0,0.92); }
+[data-template="hacker"] .app-logo { font-family: inherit; letter-spacing: 1px; text-transform: uppercase; }
+[data-template="hacker"] .app-logo::before { content: '> '; color: var(--accent); }
+[data-template="hacker"] .icon-btn { border-radius: 0; border: 1px solid var(--accent); }
+[data-template="hacker"] .hacker-block {
+  border-radius: 0;
+  border: 1px solid var(--accent);
+  background: rgba(0,0,0,0.65);
+  position: relative;
+  padding-top: 22px;
+  font-family: inherit;
+}
+[data-template="hacker"] .hacker-block::before {
+  content: '┌─ ' attr(data-tag) ' ──────────────────────────────────────┐';
+  position: absolute; top: 4px; left: 8px; right: 8px;
+  font-size: 9px; letter-spacing: 0.4px;
+  color: var(--accent); opacity: 0.9;
+  white-space: nowrap; overflow: hidden;
+  background: transparent;
+  height: auto; width: auto;
+}
+[data-template="hacker"] .hk-sys::before { content: '┌─[ SYS ]──────────────────────────────────────┐'; }
+[data-template="hacker"] .hk-cloud::before { content: '┌─[ STORAGE ]──────────────────────────────────┐'; }
+[data-template="hacker"] .hk-actions::before { content: '┌─[ ACTIONS ]──────────────────────────────────┐'; }
+[data-template="hacker"] .hk-modules::before { content: '┌─[ MODULES ]──────────────────────────────────┐'; }
+[data-template="hacker"] .hk-cal::before { content: '┌─[ CAL ]──────────────────────────────────────┐'; }
+[data-template="hacker"] .hk-clock { font-size: 64px; letter-spacing: -3px; font-family: inherit; }
+[data-template="hacker"] .hk-greeting::before { content: '> '; }
+[data-template="hacker"] .hk-quick-btn,
+[data-template="hacker"] .dash-action-btn {
+  border-radius: 0;
+  border: 1px solid var(--border);
+  font-family: inherit;
+  background: rgba(255,255,255,0.02);
+}
+[data-template="hacker"] .hk-quick-btn:active {
+  background: var(--accent);
+  color: #000;
+}
+[data-template="hacker"] .hk-quick-btn:active .hk-q-text,
+[data-template="hacker"] .hk-quick-btn:active .hk-q-key,
+[data-template="hacker"] .hk-quick-btn:active .hk-q-ico { color: #000 !important; }
+[data-template="hacker"] .cal-day,
+[data-template="hacker"] .calendar-mini-day { border-radius: 0 !important; font-family: inherit; }
+[data-template="hacker"] .cal-header-cell { font-family: inherit !important; }
+[data-template="hacker"] .bottom-dock { border-top: 1px dashed var(--accent); border-radius: 0; }
+[data-template="hacker"] .dock-btn { border-radius: 0; font-family: inherit; }
+[data-template="hacker"] .dock-btn-label,
+[data-template="hacker"] .dock-label { letter-spacing: 1px; text-transform: uppercase; font-size: 9px; }
+[data-template="hacker"] .dock-btn.active {
+  background: var(--accent);
+  color: #000;
+  border: 1px solid var(--accent);
+}
+[data-template="hacker"] .dock-btn.active .dock-icon,
+[data-template="hacker"] .dock-btn.active .dock-label,
+[data-template="hacker"] .dock-btn.active .dock-btn-label { color: #000; }
+[data-template="hacker"] .filter-chip,
+[data-template="hacker"] .link-btn,
+[data-template="hacker"] button {
+  border-radius: 0;
+  font-family: inherit;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   2. CINEMA — огромен часовник, минимален chrome, fullscreen feel
+   ════════════════════════════════════════════════════════════════ */
+[data-template="cinema"] .topbar {
+  background: transparent;
+  border-bottom: none;
+  backdrop-filter: none;
+}
+[data-template="cinema"] .app-logo { font-size: 14px; opacity: 0.7; font-weight: 600; }
+[data-template="cinema"] .app-version { display: none; }
+[data-template="cinema"] .icon-btn {
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: none;
+  width: 36px; height: 36px;
+}
+[data-template="cinema"] .hacker-block.hk-sys {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 28px 0 32px !important;
+}
+[data-template="cinema"] .hk-clock-block { border-bottom: none; padding: 0; }
+[data-template="cinema"] .hk-clock {
+  font-size: clamp(96px, 26vw, 144px);
+  letter-spacing: -6px;
+  font-weight: 200;
+  line-height: 0.95;
+}
+[data-template="cinema"] .hk-greeting {
+  font-size: 11px;
+  letter-spacing: 4px;
+  opacity: 0.6;
+}
+[data-template="cinema"] .hk-clock-sub {
+  font-size: 12px;
+  letter-spacing: 2px;
+  opacity: 0.5;
+}
+[data-template="cinema"] .hk-progress { display: none; }
+[data-template="cinema"] .hacker-block::before { display: none !important; }
+[data-template="cinema"] .hacker-block {
+  border: none !important;
+  background: rgba(255,255,255,0.03) !important;
+  border-radius: 22px !important;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
+}
+[data-template="cinema"] .hk-quick-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+[data-template="cinema"] .hk-quick-btn {
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  min-height: 64px !important;
+  background: rgba(255,255,255,0.06) !important;
+  border: none !important;
+  flex-direction: column;
+}
+[data-template="cinema"] .hk-q-key { display: none; }
+[data-template="cinema"] .hk-q-ico { font-size: 24px; }
+[data-template="cinema"] .hk-q-text { font-size: 9px; letter-spacing: 0.5px; opacity: 0.7; text-transform: none; }
+[data-template="cinema"] .hk-quick-btn:active {
+  background: var(--accent) !important;
+  transform: scale(0.92);
+}
+[data-template="cinema"] .hk-quick-btn:active .hk-q-text,
+[data-template="cinema"] .hk-quick-btn:active .hk-q-ico { color: #fff; }
+[data-template="cinema"] #screen-dashboard .dash-calendar-wrap,
+[data-template="cinema"] .hk-cal { display: none !important; }
+[data-template="cinema"] .bottom-dock {
+  background: rgba(0,0,0,0.5) !important;
+  backdrop-filter: blur(40px);
+  border-top: none !important;
+  border-radius: 24px 24px 0 0;
+  margin: 0 8px;
+}
+[data-template="cinema"] .dock-btn { border-radius: 14px; }
+[data-template="cinema"] .dock-btn.active { background: var(--accent-soft); }
+
+/* ════════════════════════════════════════════════════════════════
+   3. COCKPIT — pilot HUD, hexagon бутони, седмичен бар
+   ════════════════════════════════════════════════════════════════ */
+[data-template="cockpit"] {
+  --hex: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+[data-template="cockpit"] .topbar {
+  background: linear-gradient(180deg, rgba(0,0,0,0.94) 0%, rgba(0,0,0,0.5) 100%);
+  border-bottom: 2px solid var(--accent);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+[data-template="cockpit"] .app-logo {
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+}
+[data-template="cockpit"] .app-version {
+  background: var(--accent);
+  color: #000;
+  clip-path: polygon(8% 0%, 92% 0%, 100% 50%, 92% 100%, 8% 100%, 0% 50%);
+  border-radius: 0;
+  padding: 3px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+}
+[data-template="cockpit"] .hacker-block {
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  background: rgba(0,0,0,0.75);
+  position: relative;
+  box-shadow:
+    0 0 0 1px var(--accent-soft) inset,
+    0 0 24px var(--accent-soft);
+}
+[data-template="cockpit"] .hacker-block::before {
+  background: var(--accent) !important;
+  height: 2px !important;
+  opacity: 1 !important;
+}
+[data-template="cockpit"] .hacker-block::after {
+  content: '';
+  position: absolute;
+  top: -2px; right: -2px;
+  width: 18px; height: 18px;
+  border-top: 2px solid var(--accent);
+  border-right: 2px solid var(--accent);
+  pointer-events: none;
+}
+[data-template="cockpit"] .hk-clock {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+[data-template="cockpit"] .hk-clock-block::after {
+  content: '◢◣ AUTOPILOT ENGAGED ◢◣';
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  opacity: 0.7;
+  margin-top: 6px;
+}
+[data-template="cockpit"] .hk-greeting {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+}
+[data-template="cockpit"] .hk-quick-grid { gap: 8px; }
+[data-template="cockpit"] .hk-quick-btn {
+  background: rgba(0,0,0,0.6) !important;
+  border: 2px solid var(--accent) !important;
+  border-radius: 0 !important;
+  clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+  font-family: 'JetBrains Mono', monospace !important;
+  min-height: 80px !important;
+  box-shadow: 0 0 16px var(--accent-soft) inset;
+}
+[data-template="cockpit"] .hk-quick-btn:active {
+  background: var(--accent) !important;
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+[data-template="cockpit"] .hk-q-text {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+}
+[data-template="cockpit"] .hk-q-key { color: var(--accent) !important; }
+/* Compact week-strip calendar */
+[data-template="cockpit"] .calendar-mini { gap: 4px !important; }
+[data-template="cockpit"] .cal-day {
+  border-radius: 0 !important;
+  border: 1px solid var(--border) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+[data-template="cockpit"] .cal-day.today {
+  background: var(--accent) !important;
+  color: #000 !important;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+[data-template="cockpit"] .bottom-dock {
+  background: rgba(0,0,0,0.92) !important;
+  border-top: 2px solid var(--accent) !important;
+  box-shadow: 0 -4px 24px var(--accent-soft);
+}
+[data-template="cockpit"] .dock-btn {
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-template="cockpit"] .dock-btn.active {
+  background: var(--accent);
+  color: #000 !important;
+  box-shadow: 0 0 18px var(--accent-glow) inset;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   4. ZEN — минимал, dot indicators, много white-space
+   ════════════════════════════════════════════════════════════════ */
+[data-template="zen"] body { letter-spacing: 0.2px; }
+[data-template="zen"] .topbar {
+  background: transparent;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  backdrop-filter: none;
+}
+[data-template="zen"] .app-logo { font-weight: 300; letter-spacing: 4px; text-transform: uppercase; font-size: 12px; }
+[data-template="zen"] .app-version { display: none; }
+[data-template="zen"] .icon-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 50%;
+}
+[data-template="zen"] .hacker-block {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 24px 4px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+  border-radius: 0 !important;
+}
+[data-template="zen"] .hacker-block::before { display: none !important; }
+[data-template="zen"] .hk-clock-block { border-bottom: none; padding: 16px 0; }
+[data-template="zen"] .hk-clock {
+  font-size: 72px;
+  font-weight: 200;
+  letter-spacing: -2px;
+  text-shadow: none !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--text) !important;
+  filter: none !important;
+}
+[data-template="zen"] .hk-greeting {
+  font-size: 9px;
+  letter-spacing: 6px;
+  opacity: 0.4;
+  font-weight: 300;
+}
+[data-template="zen"] .hk-greeting::before { content: '· '; }
+[data-template="zen"] .hk-clock-sub { font-weight: 300; opacity: 0.5; }
+[data-template="zen"] .hk-progress { gap: 14px; }
+[data-template="zen"] .hk-bar { height: 1px !important; background: rgba(255,255,255,0.04) !important; }
+[data-template="zen"] .section-title {
+  font-size: 9px !important;
+  letter-spacing: 4px !important;
+  font-weight: 300 !important;
+  opacity: 0.5;
+}
+[data-template="zen"] .hk-quick-grid { gap: 14px; }
+[data-template="zen"] .hk-quick-btn {
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 999px !important;
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  padding: 10px 16px !important;
+  min-height: 44px !important;
+  gap: 10px !important;
+}
+[data-template="zen"] .hk-quick-btn:active {
+  background: rgba(255,255,255,0.04) !important;
+  border-color: var(--accent) !important;
+}
+[data-template="zen"] .hk-q-key { display: none !important; }
+[data-template="zen"] .hk-q-ico { font-size: 14px !important; }
+[data-template="zen"] .hk-q-text {
+  font-size: 11px !important;
+  letter-spacing: 0.5px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+[data-template="zen"] .cal-day {
+  border-radius: 50% !important;
+  font-weight: 300 !important;
+}
+[data-template="zen"] .cal-day.today {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+[data-template="zen"] .bottom-dock {
+  background: rgba(5,5,7,0.7) !important;
+  backdrop-filter: blur(40px);
+  border-top: 1px solid rgba(255,255,255,0.04) !important;
+}
+[data-template="zen"] .dock-btn-label,
+[data-template="zen"] .dock-label {
+  font-weight: 300;
+  letter-spacing: 1.5px;
+  font-size: 9px;
+}
+[data-template="zen"] .dock-btn.active {
+  background: transparent;
+  position: relative;
+}
+[data-template="zen"] .dock-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   5. BRUTALIST — Swiss poster, едри serif цифри, дебели рамки
+   ════════════════════════════════════════════════════════════════ */
+[data-template="brutalist"] body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+[data-template="brutalist"] .topbar {
+  background: var(--text) !important;
+  border-bottom: 4px solid var(--text) !important;
+  color: var(--bg) !important;
+}
+[data-template="brutalist"] .app-logo {
+  color: var(--bg) !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: -1px;
+  font-size: 22px;
+  background: none !important;
+  -webkit-text-fill-color: var(--bg) !important;
+  filter: none !important;
+}
+[data-template="brutalist"] .app-version {
+  background: var(--accent) !important;
+  color: var(--bg) !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  border: 2px solid var(--bg) !important;
+  padding: 2px 8px !important;
+}
+[data-template="brutalist"] .icon-btn {
+  border-radius: 0 !important;
+  border: 2px solid var(--bg) !important;
+  background: var(--text) !important;
+  color: var(--bg) !important;
+}
+[data-template="brutalist"] .hacker-block {
+  border: 3px solid var(--text) !important;
+  border-radius: 0 !important;
+  background: var(--bg) !important;
+  box-shadow: 6px 6px 0 var(--text) !important;
+  padding: 14px !important;
+}
+[data-template="brutalist"] .hacker-block::before { display: none !important; }
+[data-template="brutalist"] .hk-clock {
+  font-family: 'Times New Roman', Georgia, serif !important;
+  font-size: 96px !important;
+  font-weight: 900 !important;
+  letter-spacing: -5px !important;
+  color: var(--text) !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--text) !important;
+  filter: none !important;
+  text-shadow: none !important;
+  line-height: 0.9;
+}
+[data-template="brutalist"] .hk-greeting {
+  font-weight: 900 !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase;
+  font-size: 11px !important;
+  background: var(--accent);
+  color: var(--bg);
+  display: inline-block;
+  padding: 3px 10px;
+  margin-bottom: 12px;
+}
+[data-template="brutalist"] .hk-greeting::before { content: '' !important; }
+[data-template="brutalist"] .hk-clock-sub {
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 11px;
+}
+[data-template="brutalist"] .section-title {
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  font-size: 14px !important;
+  background: var(--text);
+  color: var(--bg);
+  padding: 4px 10px;
+  display: inline-block;
+}
+[data-template="brutalist"] .section-title::before { content: '' !important; }
+[data-template="brutalist"] .hk-quick-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+[data-template="brutalist"] .hk-quick-btn {
+  border: 3px solid var(--text) !important;
+  border-radius: 0 !important;
+  background: var(--bg) !important;
+  box-shadow: 4px 4px 0 var(--text) !important;
+  min-height: 88px !important;
+  font-weight: 900 !important;
+}
+[data-template="brutalist"] .hk-quick-btn:active {
+  background: var(--accent) !important;
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--text) !important;
+}
+[data-template="brutalist"] .hk-q-key {
+  color: var(--bg) !important;
+  background: var(--text);
+  padding: 1px 6px;
+  font-weight: 900;
+  font-size: 8px;
+}
+[data-template="brutalist"] .hk-q-ico { font-size: 28px !important; }
+[data-template="brutalist"] .hk-q-text {
+  font-weight: 900 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.5px !important;
+  text-transform: uppercase !important;
+}
+[data-template="brutalist"] .cal-day {
+  border-radius: 0 !important;
+  border: 2px solid var(--text) !important;
+  font-weight: 800 !important;
+}
+[data-template="brutalist"] .cal-day.today {
+  background: var(--accent) !important;
+  color: var(--bg) !important;
+}
+[data-template="brutalist"] .bottom-dock {
+  background: var(--text) !important;
+  border-top: 4px solid var(--text) !important;
+}
+[data-template="brutalist"] .dock-btn {
+  border-radius: 0 !important;
+  color: var(--bg) !important;
+}
+[data-template="brutalist"] .dock-btn .dock-icon,
+[data-template="brutalist"] .dock-btn .dock-label,
+[data-template="brutalist"] .dock-btn .dock-btn-label {
+  color: var(--bg) !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+[data-template="brutalist"] .dock-btn.active {
+  background: var(--accent) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   6. ARCADE — 80s neon 3D, deep shadows, glow pulse
+   ════════════════════════════════════════════════════════════════ */
+[data-template="arcade"] body { letter-spacing: 0.5px; }
+[data-template="arcade"] .topbar {
+  background: linear-gradient(180deg, rgba(0,0,0,0.96) 0%, rgba(20,0,40,0.4) 100%);
+  border-bottom: 2px solid var(--accent);
+  box-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent-glow);
+}
+[data-template="arcade"] .app-logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  text-shadow:
+    0 0 10px var(--accent),
+    0 0 20px var(--accent),
+    0 0 40px var(--accent);
+}
+[data-template="arcade"] .app-version {
+  font-family: 'JetBrains Mono', monospace;
+  background: transparent;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  border-radius: 0;
+  font-weight: 800;
+  text-shadow: 0 0 8px var(--accent);
+  box-shadow: 0 0 12px var(--accent-soft);
+}
+[data-template="arcade"] .hacker-block {
+  border: 2px solid var(--accent) !important;
+  border-radius: 16px !important;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(20,0,40,0.6) 100%) !important;
+  box-shadow:
+    0 0 0 1px var(--accent-soft) inset,
+    0 0 20px var(--accent-soft),
+    0 12px 32px rgba(0,0,0,0.6),
+    inset 0 0 30px rgba(0,0,0,0.4) !important;
+}
+[data-template="arcade"] .hacker-block::before {
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%) !important;
+  height: 2px !important;
+  opacity: 1 !important;
+  box-shadow: 0 0 10px var(--accent);
+}
+[data-template="arcade"] .hk-clock {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 80px !important;
+  font-weight: 900 !important;
+  letter-spacing: -3px !important;
+  color: var(--accent) !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--accent) !important;
+  filter: none !important;
+  text-shadow:
+    0 0 12px var(--accent),
+    0 0 24px var(--accent),
+    0 0 48px var(--accent),
+    4px 4px 0 rgba(0,0,0,0.6) !important;
+  animation: arcadePulse 2.4s ease-in-out infinite;
+}
+@keyframes arcadePulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.25); }
+}
+[data-template="arcade"] .hk-greeting {
+  font-family: 'JetBrains Mono', monospace !important;
+  letter-spacing: 4px !important;
+  text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent);
+  font-weight: 800 !important;
+}
+[data-template="arcade"] .hk-clock-sub {
+  font-family: 'JetBrains Mono', monospace !important;
+  letter-spacing: 2px;
+}
+[data-template="arcade"] .hk-quick-grid { gap: 12px; }
+[data-template="arcade"] .hk-quick-btn {
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1;
+  min-height: 76px !important;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.20) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(20,0,40,0.95) 100%) !important;
+  border: 2px solid var(--accent) !important;
+  box-shadow:
+    0 0 16px var(--accent-soft),
+    0 0 0 1px var(--accent-soft) inset,
+    inset 0 -8px 16px rgba(0,0,0,0.4),
+    0 8px 16px rgba(0,0,0,0.5) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+[data-template="arcade"] .hk-quick-btn:active {
+  transform: scale(0.92) !important;
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    inset 0 0 24px var(--accent-soft) !important;
+  background:
+    radial-gradient(circle at 35% 30%, var(--accent-soft) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(40,0,80,0.95) 100%) !important;
+}
+[data-template="arcade"] .hk-q-key { display: none !important; }
+[data-template="arcade"] .hk-q-ico { font-size: 26px !important; filter: drop-shadow(0 0 8px var(--accent-glow)); }
+[data-template="arcade"] .hk-q-text {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 9px !important;
+  letter-spacing: 1.5px !important;
+  text-shadow: 0 0 6px var(--accent);
+  font-weight: 800 !important;
+}
+[data-template="arcade"] .cal-day {
+  border-radius: 50% !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 700 !important;
+}
+[data-template="arcade"] .cal-day.today {
+  background: var(--accent) !important;
+  color: #000 !important;
+  box-shadow: 0 0 18px var(--accent), 0 0 36px var(--accent-glow) !important;
+  animation: arcadePulse 2s ease-in-out infinite;
+}
+[data-template="arcade"] .bottom-dock {
+  background: linear-gradient(180deg, rgba(0,0,0,0.94) 0%, rgba(20,0,40,1) 100%) !important;
+  border-top: 2px solid var(--accent) !important;
+  box-shadow: 0 -2px 24px var(--accent-glow), 0 -4px 48px var(--accent-soft) !important;
+}
+[data-template="arcade"] .dock-btn {
+  border-radius: 50% !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+[data-template="arcade"] .dock-btn.active {
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.18) 0%, transparent 50%),
+    var(--accent) !important;
+  color: #000 !important;
+  box-shadow: 0 0 24px var(--accent-glow), 0 0 48px var(--accent-glow) !important;
+}
+[data-template="arcade"] .dock-btn.active .dock-label,
+[data-template="arcade"] .dock-btn.active .dock-btn-label,
+[data-template="arcade"] .dock-btn.active .dock-icon { color: #000 !important; }
+
+
+/* ════════════════════════════════════════════════════════════════
+   TEMPLATE PICKER SWATCHES — schematic mini-mockup за всеки шаблон
+   ════════════════════════════════════════════════════════════════ */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+.template-swatch {
+  position: relative;
+  background: var(--bg3);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 8px 8px 10px;
+  overflow: hidden;
+  text-align: left;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  cursor: pointer;
+}
+.template-swatch:active { transform: scale(0.97); }
+.template-swatch.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset, 0 6px 22px var(--accent-glow);
+}
+.tpl-preview {
+  position: relative;
+  height: 78px;
+  border-radius: 10px;
+  background: #050507;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+}
+.tpl-pv-header {
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.tpl-pv-hero {
+  flex: 1;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+  position: relative;
+}
+.tpl-pv-hero::after {
+  content: '';
+  position: absolute;
+  inset: 8px 18% auto 18%;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+  opacity: 0.85;
+}
+.tpl-pv-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 0 4px 4px;
+}
+.tpl-pv-grid i {
+  height: 10px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 2px;
+  display: block;
+}
+.tpl-pv-dock {
+  height: 8px;
+  background: rgba(255,255,255,0.10);
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.template-swatch-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+.template-swatch-tag {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--text3);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Per-template preview */
+.tpl-pv-classic .tpl-pv-hero::after { border-radius: 6px; }
+
+.tpl-pv-hacker {
+  background: #000;
+  background-image: repeating-linear-gradient(0deg, rgba(0,255,65,0.10) 0 1px, transparent 1px 3px);
+}
+.tpl-pv-hacker .tpl-pv-header { background: transparent; border-bottom: 1px dashed #00ff41; }
+.tpl-pv-hacker .tpl-pv-hero::after { background: #00ff41; border-radius: 0; box-shadow: 0 0 8px #00ff41; }
+.tpl-pv-hacker .tpl-pv-grid i { background: rgba(0,255,65,0.20); border: 1px solid rgba(0,255,65,0.4); border-radius: 0; }
+.tpl-pv-hacker .tpl-pv-dock { background: transparent; border-top: 1px dashed #00ff41; }
+
+.tpl-pv-cinema { background: #000; }
+.tpl-pv-cinema .tpl-pv-header { background: transparent; border: none; }
+.tpl-pv-cinema .tpl-pv-hero::after {
+  inset: 14px 8% auto 8%;
+  height: 28px;
+  background: linear-gradient(135deg, #fff 0%, #888 100%);
+  border-radius: 4px;
+  opacity: 0.85;
+}
+.tpl-pv-cinema .tpl-pv-grid i { border-radius: 50%; aspect-ratio: 1; height: 12px; background: rgba(255,255,255,0.18); }
+.tpl-pv-cinema .tpl-pv-dock { background: rgba(255,255,255,0.06); border-radius: 8px 8px 0 0; }
+
+.tpl-pv-cockpit { background: linear-gradient(180deg, #000 0%, #0a0e1a 100%); }
+.tpl-pv-cockpit .tpl-pv-header { background: var(--accent); height: 4px; box-shadow: 0 0 8px var(--accent); }
+.tpl-pv-cockpit .tpl-pv-hero::after { clip-path: polygon(8% 0%, 92% 0%, 100% 50%, 92% 100%, 8% 100%, 0% 50%); border-radius: 0; }
+.tpl-pv-cockpit .tpl-pv-grid i { clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%); border-radius: 0; background: rgba(255,255,255,0.18); }
+
+.tpl-pv-zen { background: #050507; }
+.tpl-pv-zen .tpl-pv-header { background: transparent; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.tpl-pv-zen .tpl-pv-hero::after {
+  inset: 14px 28% auto 28%;
+  height: 8px;
+  background: rgba(255,255,255,0.65);
+  border-radius: 0;
+  opacity: 1;
+}
+.tpl-pv-zen .tpl-pv-grid i { border-radius: 999px; height: 5px; background: rgba(255,255,255,0.18); }
+.tpl-pv-zen .tpl-pv-dock { background: transparent; border-top: 1px solid rgba(255,255,255,0.05); }
+
+.tpl-pv-brutalist { background: #050507; border: 2px solid #fff !important; border-radius: 10px; }
+.tpl-pv-brutalist .tpl-pv-header { background: #fff; height: 12px; border-bottom: 2px solid #fff; }
+.tpl-pv-brutalist .tpl-pv-hero { border-bottom: 2px solid #fff; }
+.tpl-pv-brutalist .tpl-pv-hero::after {
+  background: #fff;
+  inset: 6px 10% auto 10%;
+  height: 24px;
+  border-radius: 0;
+  border: 2px solid #050507;
+}
+.tpl-pv-brutalist .tpl-pv-grid { gap: 3px; padding: 4px; grid-template-columns: 1fr 1fr; }
+.tpl-pv-brutalist .tpl-pv-grid i {
+  border: 2px solid #fff;
+  border-radius: 0;
+  background: transparent;
+  height: 12px;
+}
+.tpl-pv-brutalist .tpl-pv-dock { background: #fff; border-top: 2px solid #fff; }
+
+.tpl-pv-arcade {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(255,0,128,0.20) 0%, transparent 70%),
+    linear-gradient(180deg, #000 0%, #1a0030 100%);
+}
+.tpl-pv-arcade .tpl-pv-header {
+  background: linear-gradient(90deg, #ff0080 0%, #00fff0 100%);
+  height: 3px;
+  box-shadow: 0 0 8px #ff0080;
+}
+.tpl-pv-arcade .tpl-pv-hero::after {
+  background: linear-gradient(180deg, #ff7eff 0%, #ff0080 100%);
+  box-shadow: 0 0 12px #ff0080, 0 0 24px #ff0080;
+  border-radius: 4px;
+}
+.tpl-pv-arcade .tpl-pv-grid i {
+  border-radius: 50%;
+  height: 11px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.30) 0%, transparent 50%),
+    var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.tpl-pv-arcade .tpl-pv-dock {
+  background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(40,0,80,1) 100%);
+  border-top: 2px solid var(--accent);
+}
