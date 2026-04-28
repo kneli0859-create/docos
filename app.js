@@ -8860,31 +8860,61 @@ async function mpProbeDuration(blob) {
 async function mpDownloadFromUrl(rawUrl) {
   const url = String(rawUrl || '').trim();
   if (!url) { showToast('⚠️ Постави линк'); return; }
-  // YouTube / Spotify / SoundCloud → cobalt.tools (browser cannot fetch them due to CORS + DRM)
-  const lower = url.toLowerCase();
-  if (/youtu\.?be|spotify|soundcloud|tiktok|deezer|tidal|apple\.com\/music/.test(lower)) {
-    const target = `https://cobalt.tools/?u=${encodeURIComponent(url)}`;
-    try { window.open(target, '_blank', 'noopener'); } catch {}
-    showToast('↗ Отворих cobalt.tools — свали MP3 и го качи тук', 4500);
-    return;
-  }
-  // Direct fetch — works for raw .mp3 etc with CORS allowed
+  if (!/^https?:\/\//i.test(url)) { showToast('⚠️ Невалиден линк'); return; }
+
+  const btn = document.getElementById('mpUrlBtn');
+  const input = document.getElementById('mpUrlInput');
+  const setBtn = (txt, dis) => { if (btn) { btn.textContent = txt; btn.disabled = !!dis; } };
+
   try {
-    showToast('⬇ Тегля...', 2000);
-    const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const blob = await res.blob();
-    if (!/^audio\//i.test(blob.type) && !/\.(mp3|wav|m4a|ogg|flac|aac)(\?|$)/i.test(url)) {
-      showToast('⚠️ URL не е аудио', 3500); return;
+    setBtn('⏳ ТЪРСЯ...', true);
+    showToast('🔍 Извличам линк за сваляне...', 2200);
+
+    // 1) Ask our serverless function to resolve (or proxy direct)
+    const resolveRes = await fetch('/api/music-fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const resolveData = await resolveRes.json().catch(() => ({}));
+    if (!resolveRes.ok || !resolveData?.ok || !resolveData.downloadUrl) {
+      throw new Error(resolveData?.error || `HTTP ${resolveRes.status}`);
     }
-    const filename = (url.split('/').pop() || 'track').split('?')[0];
-    const file = new File([blob], filename || 'track.mp3', { type: blob.type || 'audio/mpeg' });
+
+    setBtn('⬇ ТЕГЛЯ...', true);
+    showToast('⬇ Тегля от сървъра...', 2500);
+
+    // 2) Stream the resolved file through our own server (same origin, no CORS)
+    const fileRes = await fetch(resolveData.downloadUrl);
+    if (!fileRes.ok || !fileRes.body) throw new Error(`Download HTTP ${fileRes.status}`);
+
+    // Stream with progress (best-effort)
+    const total = Number(fileRes.headers.get('content-length') || 0);
+    let received = 0;
+    const chunks = [];
+    const reader = fileRes.body.getReader();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        received += value.length;
+        if (total) setBtn(`⬇ ${Math.round(received / total * 100)}%`, true);
+        else setBtn(`⬇ ${(received / 1024 / 1024).toFixed(1)} MB`, true);
+      }
+    }
+    const blob = new Blob(chunks, { type: 'audio/mpeg' });
+    const filename = resolveData.filename || ((url.split('/').pop() || 'track').split('?')[0] + '.mp3');
+    const file = new File([blob], filename.endsWith('.mp3') || filename.endsWith('.m4a') || filename.endsWith('.webm') ? filename : filename + '.mp3', { type: 'audio/mpeg' });
+
     await mpAddTracksFromFiles([file]);
-    document.getElementById('mpUrlInput').value = '';
+    if (input) input.value = '';
+    setBtn('⬇ ДРЪПНИ', false);
+    showToast(`✅ Свалено: ${file.name.slice(0, 40)}`, 3500);
   } catch (e) {
     console.warn('URL download failed', e);
-    showToast('⚠️ CORS блокира — пробвай cobalt.tools', 4000);
-    try { window.open(`https://cobalt.tools/?u=${encodeURIComponent(url)}`, '_blank', 'noopener'); } catch {}
+    setBtn('⬇ ДРЪПНИ', false);
+    showToast(`⚠️ Грешка: ${e.message}`.slice(0, 80), 4500);
   }
 }
 
