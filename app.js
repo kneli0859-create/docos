@@ -8,16 +8,22 @@
    1. CONSTANTS & CONFIG
 ═══════════════════════════════════════════════ */
 
-const APP_VERSION = '5.0.1';
+const APP_VERSION = '5.1.0';
 const LS_KEY = 'docos_v3';
 const THEMES = [
-  { id: 'matrix',       label: 'Matrix',  color: '#00ff41' },
-  { id: 'black-blue',   label: 'Синя',    color: '#3B82F6' },
-  { id: 'black-yellow', label: 'Жълта',   color: '#EAB308' },
-  { id: 'black-red',    label: 'Червена', color: '#EF4444' },
-  { id: 'black-green',  label: 'Зелена',  color: '#22C55E' },
-  { id: 'black-orange', label: 'Оранж',   color: '#F97316' },
-  { id: 'chameleon',    label: 'Хамелеон',color: '#A855F7' },
+  { id: 'matrix',       label: 'Matrix',    color: '#00ff41', preview: 'matrix' },
+  { id: 'cyberpunk',    label: 'Cyberpunk', color: '#ff0080', preview: 'cyberpunk' },
+  { id: 'synthwave',    label: 'Synthwave', color: '#ff6ec7', preview: 'synthwave' },
+  { id: 'amber',        label: 'Amber CRT', color: '#ffb000', preview: 'amber' },
+  { id: 'german',       label: 'German',    color: '#d4a843', preview: 'german' },
+  { id: 'bloodmoon',    label: 'Blood',     color: '#dc2626', preview: 'bloodmoon' },
+  { id: 'nordic',       label: 'Nordic',    color: '#5e81ac', preview: 'nordic' },
+  { id: 'black-blue',   label: 'Синя',      color: '#3B82F6', preview: 'glow' },
+  { id: 'black-yellow', label: 'Жълта',     color: '#EAB308', preview: 'glow' },
+  { id: 'black-red',    label: 'Червена',   color: '#EF4444', preview: 'glow' },
+  { id: 'black-green',  label: 'Зелена',    color: '#22C55E', preview: 'glow' },
+  { id: 'black-orange', label: 'Оранж',     color: '#F97316', preview: 'glow' },
+  { id: 'chameleon',    label: 'Хамелеон',  color: '#A855F7', preview: 'rainbow' },
 ];
 
 const FOLDER_EMOJIS = ['📁','📂','💼','🏠','🏥','🚗','🎓','💰','📋','🔒','⚡','🌍','📦','🧾','🏛️','💡'];
@@ -3505,6 +3511,12 @@ const HEURISTICS = {
 function applyTheme(themeId) {
   document.documentElement.setAttribute('data-theme', themeId);
   state.theme = themeId;
+  // Brief transition flash so the swap feels intentional
+  document.documentElement.classList.add('theme-switching');
+  clearTimeout(applyTheme._t);
+  applyTheme._t = setTimeout(() => {
+    document.documentElement.classList.remove('theme-switching');
+  }, 420);
   // Update active swatch
   document.querySelectorAll('.theme-swatch').forEach(el => {
     el.classList.toggle('active', el.dataset.theme === themeId);
@@ -3514,12 +3526,23 @@ function applyTheme(themeId) {
 function renderThemeGrid() {
   const grid = document.getElementById('themeGrid');
   if (!grid) return;
-  grid.innerHTML = THEMES.map(t => `
-    <button class="theme-swatch ${state.theme === t.id ? 'active' : ''}" data-theme="${t.id}">
-      <div class="theme-dot" style="background:${t.color}"></div>
+  grid.innerHTML = THEMES.map(t => {
+    const previewKind = t.preview || 'glow';
+    return `
+    <button class="theme-swatch ${state.theme === t.id ? 'active' : ''} ts-${previewKind}"
+            data-theme="${t.id}" data-preview="${previewKind}">
+      <div class="theme-preview" data-preview="${previewKind}" style="--swatch:${t.color}">
+        <div class="theme-preview-bar"></div>
+        <div class="theme-preview-grid">
+          <div class="theme-preview-cell"></div>
+          <div class="theme-preview-cell"></div>
+          <div class="theme-preview-cell"></div>
+        </div>
+        <div class="theme-preview-dot" style="background:${t.color}"></div>
+      </div>
       <span class="theme-swatch-label">${t.label}</span>
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
   grid.querySelectorAll('.theme-swatch').forEach(btn => {
     btn.addEventListener('click', () => {
       applyTheme(btn.dataset.theme);
