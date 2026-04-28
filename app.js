@@ -8702,15 +8702,81 @@ function mpEnsureAudio() {
   const audio = new Audio();
   audio.preload = 'metadata';
   audio.crossOrigin = 'anonymous';
-  audio.addEventListener('timeupdate', mpRenderProgress);
-  audio.addEventListener('durationchange', mpRenderProgress);
-  audio.addEventListener('play', () => { musicEngine.isPlaying = true; mpRenderControls(); mpStartVis(); document.getElementById('mpNowBlock')?.classList.add('playing'); });
-  audio.addEventListener('pause', () => { musicEngine.isPlaying = false; mpRenderControls(); document.getElementById('mpNowBlock')?.classList.remove('playing'); });
+  // Background-friendly hints
+  try { audio.setAttribute('playsinline', ''); } catch {}
+  try { audio.setAttribute('webkit-playsinline', ''); } catch {}
+  audio.addEventListener('timeupdate', () => { mpRenderProgress(); mpUpdatePositionState(); });
+  audio.addEventListener('durationchange', () => { mpRenderProgress(); mpUpdatePositionState(); });
+  audio.addEventListener('play', () => { musicEngine.isPlaying = true; mpRenderControls(); mpStartVis(); document.getElementById('mpNowBlock')?.classList.add('playing'); mpSetMediaSessionState('playing'); });
+  audio.addEventListener('pause', () => { musicEngine.isPlaying = false; mpRenderControls(); document.getElementById('mpNowBlock')?.classList.remove('playing'); mpSetMediaSessionState('paused'); });
   audio.addEventListener('ended', () => mpHandleEnded());
   audio.addEventListener('error', () => { showToast('⚠️ Грешка при възпроизвеждане'); });
   audio.volume = (state.musicPrefs?.volume ?? 0.8);
   musicEngine.audio = audio;
   return audio;
+}
+
+/* ── MEDIA SESSION (lock screen controls — Spotify-style) ─────────── */
+function mpInitMediaSession() {
+  if (musicEngine.msInited) return;
+  if (!('mediaSession' in navigator)) return;
+  musicEngine.msInited = true;
+  try {
+    navigator.mediaSession.setActionHandler('play',         () => { mpResumeCtx(); musicEngine.audio?.play().catch(() => {}); });
+    navigator.mediaSession.setActionHandler('pause',        () => { musicEngine.audio?.pause(); });
+    navigator.mediaSession.setActionHandler('previoustrack',() => mpPrev());
+    navigator.mediaSession.setActionHandler('nexttrack',    () => mpNext(false));
+    navigator.mediaSession.setActionHandler('seekbackward', (d) => { if (musicEngine.audio) musicEngine.audio.currentTime = Math.max(0, musicEngine.audio.currentTime - (d.seekOffset || 10)); });
+    navigator.mediaSession.setActionHandler('seekforward',  (d) => { if (musicEngine.audio) musicEngine.audio.currentTime = Math.min(musicEngine.audio.duration || 0, musicEngine.audio.currentTime + (d.seekOffset || 10)); });
+    navigator.mediaSession.setActionHandler('seekto',       (d) => { if (musicEngine.audio && Number.isFinite(d.seekTime)) musicEngine.audio.currentTime = d.seekTime; });
+    navigator.mediaSession.setActionHandler('stop',         () => { musicEngine.audio?.pause(); });
+  } catch (e) { console.warn('mediaSession handlers failed', e); }
+}
+
+function mpSetMediaSessionState(state) {
+  if (!('mediaSession' in navigator)) return;
+  try { navigator.mediaSession.playbackState = state; } catch {}
+}
+
+function mpUpdatePositionState() {
+  if (!('mediaSession' in navigator) || !musicEngine.audio) return;
+  if (typeof navigator.mediaSession.setPositionState !== 'function') return;
+  const a = musicEngine.audio;
+  if (!Number.isFinite(a.duration) || a.duration <= 0) return;
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: a.duration,
+      playbackRate: a.playbackRate || 1,
+      position: Math.min(a.currentTime || 0, a.duration)
+    });
+  } catch {}
+}
+
+function mpSetMediaMetadata(track) {
+  if (!('mediaSession' in navigator) || !window.MediaMetadata) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track?.title || 'DocOS',
+      artist: track?.artist || 'DocOS Music',
+      album: 'Моята библиотека',
+      artwork: [
+        { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }
+      ]
+    });
+  } catch {}
+}
+
+/* Wake Lock — keep screen-off audio alive on iOS PWA */
+async function mpAcquireWakeLock() {
+  try {
+    if (!('wakeLock' in navigator) || musicEngine.wakeLock) return;
+    musicEngine.wakeLock = await navigator.wakeLock.request('screen').catch(() => null);
+  } catch {}
+}
+function mpReleaseWakeLock() {
+  try { musicEngine.wakeLock?.release(); } catch {}
+  musicEngine.wakeLock = null;
 }
 
 function mpEnsureContext() {
@@ -8848,6 +8914,7 @@ async function mpPlayTrack(id) {
   if (!blob) { showToast('⚠️ Файлът липсва'); return; }
   mpEnsureAudio();
   mpEnsureContext();
+  mpInitMediaSession();
   mpResumeCtx();
   // Release prev URL
   if (musicEngine.currentObjectUrl) { try { URL.revokeObjectURL(musicEngine.currentObjectUrl); } catch {} }
@@ -8857,6 +8924,9 @@ async function mpPlayTrack(id) {
   musicEngine.audio.src = url;
   musicEngine.audio.playbackRate = state.musicPrefs?.speed || 1.0;
   try { await musicEngine.audio.play(); } catch (e) { console.warn('play failed', e); }
+  mpSetMediaMetadata(t);
+  mpUpdatePositionState();
+  mpAcquireWakeLock();
   mpRenderNow(t);
   mpRenderLibrary();
 }
@@ -8879,7 +8949,13 @@ function mpStop() {
   try { if (musicEngine.audio) { musicEngine.audio.pause(); musicEngine.audio.currentTime = 0; } } catch {}
   if (musicEngine.currentObjectUrl) { try { URL.revokeObjectURL(musicEngine.currentObjectUrl); } catch {} musicEngine.currentObjectUrl = ''; }
   cancelAnimationFrame(musicEngine.visRaf); musicEngine.visRaf = 0;
+  mpReleaseWakeLock();
 }
+
+// Reacquire wake lock when user returns to tab while still playing
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && musicEngine.isPlaying) mpAcquireWakeLock();
+});
 
 function mpHandleEnded() {
   ensureMusicState();
@@ -8899,7 +8975,7 @@ function mpNext(autoFromEnd = false) {
   const idx = list.findIndex(t => t.id === musicEngine.currentTrackId);
   let nextIdx = idx + 1;
   if (nextIdx >= list.length) {
-    if (autoFromEnd && state.musicPrefs?.repeat !== 'all') return; // stop at end
+    // Spotify-style: автоматично върви по всичките, в края loop-ва от началото
     nextIdx = 0;
   }
   mpPlayTrack(list[nextIdx].id);
