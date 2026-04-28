@@ -6612,6 +6612,14 @@ function initEventListeners() {
     document.getElementById('folderCameraInput').click();
   });
 
+  // Empty state shortcuts (same inputs as header buttons)
+  document.getElementById('folderEmptyUploadBtn')?.addEventListener('click', () => {
+    document.getElementById('folderFileInput').click();
+  });
+  document.getElementById('folderEmptyCameraBtn')?.addEventListener('click', () => {
+    document.getElementById('folderCameraInput').click();
+  });
+
   // Folder file inputs — use fast direct path, bypass intake queue
   document.getElementById('folderFileInput')?.addEventListener('change', (e) => {
     directFolderUpload(e.target.files, state.currentFolderId);

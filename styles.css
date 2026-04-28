@@ -1009,7 +1009,7 @@ a { color: var(--accent); }
 }
 .dash-persist-warn {
   font-size: 0.68rem;
-  color: var(--warning);
+  color: var(--text2);
   font-weight: 600;
 }
 .dash-persist-btn {
@@ -1994,6 +1994,35 @@ a { color: var(--accent); }
   transition: all 0.2s ease;
 }
 .empty-action:active { transform: scale(0.96); opacity: 0.9; }
+.empty-actions-row {
+  display: flex;
+  gap: 0.7rem;
+  margin-top: 1.2rem;
+  width: 100%;
+  max-width: 320px;
+  justify-content: center;
+}
+.empty-action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 72px;
+  padding: 0.9rem 0.6rem;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.empty-action-btn:active { transform: scale(0.96); background: var(--accent); color: white; }
+.empty-action-ico { font-size: 1.5rem; }
 
 /* ---------- Badge ---------- */
 .badge { display: inline-block; background: var(--accent); color: white; font-size: 0.65rem; font-weight: 700; border-radius: 10px; padding: 1px 7px; }

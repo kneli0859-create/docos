@@ -250,8 +250,8 @@
               <span id="dashStorageFree">Свободно: —</span>
             </div>
             <div class="dash-storage-persist-row" id="dashPersistRow" style="display:none">
-              <span class="dash-persist-warn">⚠ Паметта не е защитена</span>
-              <button class="dash-persist-btn" id="dashPersistBtn">Защити</button>
+              <span class="dash-persist-warn">🔒 Включи защита за по-сигурно</span>
+              <button class="dash-persist-btn" id="dashPersistBtn">Включи</button>
             </div>
           </div>
 
@@ -456,7 +456,17 @@
           <div id="folderEmptyState" class="empty-state" style="display:none">
             <div class="empty-icon">📂</div>
             <div class="empty-text">Папката е празна</div>
-            <div class="empty-sub">Качи документ или снимай с камерата от бутоните горе.</div>
+            <div class="empty-sub">Започни с един от двата бутона:</div>
+            <div class="empty-actions-row">
+              <button class="empty-action-btn" id="folderEmptyCameraBtn">
+                <span class="empty-action-ico">📷</span>
+                <span>Снимай</span>
+              </button>
+              <button class="empty-action-btn" id="folderEmptyUploadBtn">
+                <span class="empty-action-ico">📤</span>
+                <span>Качи</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
