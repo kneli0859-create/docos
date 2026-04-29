@@ -230,27 +230,66 @@ async function resolveViaCobalt(url) {
   return { ok: false, errors };
 }
 
+// ──────────────────── YT-DLP RESOLVE (Python serverless function) ────────────────────
+
+async function resolveViaYtDlp(req, url) {
+  // Same-origin call → no extra latency, no CORS
+  const host = req.headers['x-forwarded-host'] || req.headers['host'];
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const base = host ? `${proto}://${host}` : '';
+  try {
+    const r = await fetchWithTimeout(`${base}/api/yt?url=${encodeURIComponent(url)}`, {
+      headers: { 'Accept': 'application/json', 'User-Agent': UA }
+    }, 25000);
+    const data = await r.json().catch(() => null);
+    if (data && data.ok && data.url) {
+      return {
+        ok: true,
+        url: data.url,
+        filename: sanitizeFilename(data.title || 'track', data.ext || 'mp3'),
+        source: data.source || 'yt-dlp'
+      };
+    }
+    return { ok: false, errors: [`yt-dlp: ${data?.error || `HTTP ${r.status}`}`] };
+  } catch (e) {
+    return { ok: false, errors: [`yt-dlp: ${e.message}`] };
+  }
+}
+
 // ──────────────────── MAIN RESOLVE ────────────────────
 
-async function resolveAudio(url) {
+async function resolveAudio(req, url) {
   const errors = [];
   const ytId = ytExtractId(url);
 
   if (ytId) {
+    // 1. yt-dlp (most reliable, actively maintained)
+    const r0 = await resolveViaYtDlp(req, url);
+    if (r0.ok) return r0;
+    errors.push(...(r0.errors || []).slice(0, 2));
+
+    // 2. Piped (fast, no install, multiple instances)
     const r1 = await resolveYouTubeViaPiped(ytId);
     if (r1.ok) return r1;
-    errors.push(...(r1.errors || []).slice(0, 4));
+    errors.push(...(r1.errors || []).slice(0, 3));
 
+    // 3. Cobalt (last resort)
     const r2 = await resolveViaCobalt(url);
     if (r2.ok) return r2;
-    errors.push(...(r2.errors || []).slice(0, 4));
+    errors.push(...(r2.errors || []).slice(0, 3));
 
     return { ok: false, error: 'YouTube е недостъпен от всички сървъри в момента — опитай след минута.', details: errors };
   }
 
+  // Non-YouTube → yt-dlp първо (поддържа SC/TikTok/Vimeo/Bandcamp/etc), Cobalt fallback
+  const r0 = await resolveViaYtDlp(req, url);
+  if (r0.ok) return r0;
+  errors.push(...(r0.errors || []).slice(0, 2));
+
   const r = await resolveViaCobalt(url);
   if (r.ok) return r;
-  return { ok: false, error: 'Източникът отказва — опитай друг линк или директен .mp3.', details: (r.errors || []).slice(0, 6) };
+  errors.push(...(r.errors || []).slice(0, 4));
+  return { ok: false, error: 'Източникът отказва — опитай друг линк или директен .mp3.', details: errors };
 }
 
 // ──────────────────── PROXY STREAM ────────────────────
@@ -318,7 +357,7 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const resolved = await resolveAudio(url);
+    const resolved = await resolveAudio(req, url);
     if (!resolved.ok) {
       return jsonError(res, 502, resolved.error || 'resolve failed', resolved.details);
     }
