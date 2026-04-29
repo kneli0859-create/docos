@@ -8903,9 +8903,11 @@ async function mpDownloadFromUrl(rawUrl) {
         else setBtn(`⬇ ${(received / 1024 / 1024).toFixed(1)} MB`, true);
       }
     }
-    const blob = new Blob(chunks, { type: 'audio/mpeg' });
-    const filename = resolveData.filename || ((url.split('/').pop() || 'track').split('?')[0] + '.mp3');
-    const file = new File([blob], filename.endsWith('.mp3') || filename.endsWith('.m4a') || filename.endsWith('.webm') ? filename : filename + '.mp3', { type: 'audio/mpeg' });
+    const upstreamType = fileRes.headers.get('content-type') || 'audio/mpeg';
+    const blob = new Blob(chunks, { type: upstreamType.startsWith('audio/') ? upstreamType : 'audio/mpeg' });
+    let filename = resolveData.filename || ((url.split('/').pop() || 'track').split('?')[0]);
+    if (!/\.(mp3|m4a|webm|opus|ogg|wav|flac|aac)$/i.test(filename)) filename += '.mp3';
+    const file = new File([blob], filename, { type: blob.type });
 
     await mpAddTracksFromFiles([file]);
     if (input) input.value = '';
