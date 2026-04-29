@@ -8821,23 +8821,40 @@ function mpCleanTitle(name) {
   return String(name || 'Без име').replace(/\.[a-z0-9]{1,5}$/i, '').replace(/[._-]+/g, ' ').trim() || 'Без име';
 }
 
+function mpDebugAlert(msg) {
+  // Brutal fullscreen visible debug — impossible to miss
+  try { alert('🐛 DocOS Debug:\n\n' + msg); } catch {}
+  console.warn('[DocOS DBG]', msg);
+}
+
 async function mpAddTracksFromFiles(fileList) {
   ensureMusicState();
-  const files = Array.from(fileList || []).filter(f => {
+  const allFiles = Array.from(fileList || []);
+  const files = allFiles.filter(f => {
     if (!f) return false;
     if (/^(audio|video)\//i.test(f.type || '')) return true;
     if (/\.(mp3|wav|m4a|ogg|flac|aac|webm|opus|mp4|3gp|wma|amr)$/i.test(f.name || '')) return true;
     return false;
   });
-  if (!files.length) { showToast('⚠️ Файлът не е аудио формат'); return; }
+  if (!files.length) {
+    mpDebugAlert(`Filter блокира файла.\nПолучих: ${allFiles.length} файла\n` +
+      allFiles.map(f => `• name="${f?.name}" type="${f?.type}" size=${f?.size}`).join('\n'));
+    return;
+  }
   let added = 0;
   let lastId = '';
+  let lastError = '';
   for (const file of files) {
+    let stage = 'init';
     try {
+      stage = 'normalize';
       const id = uid();
       const safeBlob = await safeNormalizeBlob(file);
+      stage = 'probe-duration';
       const meta = await mpProbeDuration(safeBlob).catch(() => 0);
+      stage = 'idb-put';
       await putAssetRecord({ id: MP_TRACK_ASSET_PREFIX + id, blob: safeBlob, type: file.type || 'audio/mpeg' });
+      stage = 'state-push';
       state.tracks.push({
         id, title: mpCleanTitle(file.name), artist: '', mime: file.type || 'audio/mpeg',
         size: file.size || (safeBlob.size || 0), duration: meta || 0,
@@ -8846,29 +8863,31 @@ async function mpAddTracksFromFiles(fileList) {
       added++;
       lastId = id;
     } catch (e) {
-      console.warn('mpAdd failed', e);
-      showToast(`⚠️ Файлът не може да се запази: ${e.message || e}`.slice(0, 120), 5000);
+      lastError = `Stage "${stage}" се провали:\n${e?.name || ''} ${e?.message || e}`;
+      console.warn('mpAdd failed', stage, e);
     }
   }
   if (added) {
-    saveState();
+    try { saveState(); } catch (e) { mpDebugAlert(`saveState fail: ${e.message}`); }
+    // Switch to music screen so the user sees the library
+    try { if (typeof showScreen === 'function') showScreen('screen-music'); } catch {}
     mpRenderLibrary();
     mpRenderStats();
     mpRenderAlarmSelectors();
-    showToast(`🎵 Добавени: ${added} — превърти надолу до библиотеката`, 4000);
-    // Scroll to the newly added track and flash it
+    showToast(`🎵 Добавени: ${added} — виж надолу в БИБЛИОТЕКА`, 5000);
     setTimeout(() => {
       const row = lastId && document.querySelector(`.mp-lib-row[data-track-id="${lastId}"]`);
       if (row) {
         row.scrollIntoView({ behavior: 'smooth', block: 'center' });
         row.style.transition = 'background 0.6s';
-        row.style.background = 'rgba(212, 168, 67, 0.35)';
-        setTimeout(() => { row.style.background = ''; }, 1800);
+        row.style.background = 'rgba(212, 168, 67, 0.45)';
+        setTimeout(() => { row.style.background = ''; }, 2200);
       } else {
-        // Fallback: scroll to library section
         document.getElementById('mpLibList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 200);
+    }, 250);
+  } else {
+    mpDebugAlert(`Файлът се сваля, но не успях да го запиша:\n\n${lastError}\n\nФайл: name="${files[0]?.name}" type="${files[0]?.type}" size=${files[0]?.size}`);
   }
 }
 
