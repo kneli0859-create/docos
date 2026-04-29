@@ -8847,13 +8847,11 @@ async function mpAddTracksFromFiles(fileList) {
   for (const file of files) {
     let stage = 'init';
     try {
-      stage = 'normalize';
-      const id = uid();
-      const safeBlob = await safeNormalizeBlob(file);
       stage = 'probe-duration';
-      const meta = await mpProbeDuration(safeBlob).catch(() => 0);
-      stage = 'idb-put';
-      await putAssetRecord({ id: MP_TRACK_ASSET_PREFIX + id, blob: safeBlob, type: file.type || 'audio/mpeg' });
+      const id = uid();
+      const meta = await mpProbeDuration(file).catch(() => 0);
+      stage = 'idb-put-arraybuffer';
+      await mpSaveTrackAsset(id, file);
       stage = 'state-push';
       state.tracks.push({
         id, title: mpCleanTitle(file.name), artist: '', mime: file.type || 'audio/mpeg',
@@ -8984,9 +8982,38 @@ async function mpDeleteTrack(id) {
   showToast('🗑 Записът е изтрит');
 }
 
+// iOS Safari can fail to structured-clone Blob built from fetch chunks
+// ("Error preparing Blob/File data to be stored in object store").
+// Workaround: store as ArrayBuffer + mimeType, rebuild Blob on load.
+async function mpSaveTrackAsset(id, blobOrFile) {
+  const mimeType = blobOrFile.type || 'audio/mpeg';
+  const buffer = await blobOrFile.arrayBuffer();
+  const record = { id: MP_TRACK_ASSET_PREFIX + id, data: buffer, mimeType };
+  // Bypass putAssetRecord's blob normalization — go straight to IDB
+  const db = await openAssetDb();
+  if (typeof db.put === 'function') {
+    await db.put(ASSET_STORE, record);
+  } else {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(ASSET_STORE, 'readwrite');
+      tx.objectStore(ASSET_STORE).put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('IDB put error'));
+    });
+  }
+  return record;
+}
+
 async function mpLoadTrackBlob(id) {
   const rec = await getAssetRecord(MP_TRACK_ASSET_PREFIX + id);
-  return rec?.blob || null;
+  if (!rec) return null;
+  // New format: ArrayBuffer + mimeType
+  if (rec.data && (rec.data instanceof ArrayBuffer || ArrayBuffer.isView(rec.data))) {
+    const buf = rec.data instanceof ArrayBuffer ? rec.data : rec.data.buffer;
+    return new Blob([buf], { type: rec.mimeType || rec.type || 'audio/mpeg' });
+  }
+  // Legacy format: Blob
+  return rec.blob || null;
 }
 
 async function mpPlayTrack(id) {
