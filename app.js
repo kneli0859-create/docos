@@ -8878,7 +8878,10 @@ async function mpDownloadFromUrl(rawUrl) {
     });
     const resolveData = await resolveRes.json().catch(() => ({}));
     if (!resolveRes.ok || !resolveData?.ok || !resolveData.downloadUrl) {
-      throw new Error(resolveData?.error || `HTTP ${resolveRes.status}`);
+      const err = resolveData?.error || `HTTP ${resolveRes.status}`;
+      const det = Array.isArray(resolveData?.details) ? '\n• ' + resolveData.details.slice(0, 3).join('\n• ') : '';
+      console.warn('Resolve failed:', err, resolveData?.details);
+      throw new Error(err + det);
     }
 
     setBtn('⬇ ТЕГЛЯ...', true);
@@ -8916,7 +8919,7 @@ async function mpDownloadFromUrl(rawUrl) {
   } catch (e) {
     console.warn('URL download failed', e);
     setBtn('⬇ ДРЪПНИ', false);
-    showToast(`⚠️ Грешка: ${e.message}`.slice(0, 80), 4500);
+    showToast(`⚠️ ${e.message}`.slice(0, 220), 7000);
   }
 }
 

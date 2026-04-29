@@ -34,10 +34,16 @@ def _resolve(url: str):
         "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best[acodec!=none]",
         "noplaylist": True,
         "extractor_args": {
-            # Use Android client → bypasses most PoToken / cipher requirements
-            "youtube": {"player_client": ["android", "web"]}
+            # Multiple clients for max coverage (shorts, music, age-gated, etc)
+            "youtube": {"player_client": ["android", "ios", "web", "mweb", "tv_embedded"]}
         },
         "socket_timeout": 15,
+        "retries": 2,
+        "fragment_retries": 2,
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-S908B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        },
     }
     try:
         with YoutubeDL(ydl_opts) as ydl:
