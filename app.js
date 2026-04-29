@@ -8827,7 +8827,7 @@ function mpDebugAlert(msg) {
   console.warn('[DocOS DBG]', msg);
 }
 
-async function mpAddTracksFromFiles(fileList) {
+async function mpAddTracksFromFiles(fileList, opts = {}) {
   ensureMusicState();
   const allFiles = Array.from(fileList || []);
   const files = allFiles.filter(f => {
@@ -8855,8 +8855,10 @@ async function mpAddTracksFromFiles(fileList) {
       stage = 'state-push';
       state.tracks.push({
         id, title: mpCleanTitle(file.name), artist: '', mime: file.type || 'audio/mpeg',
-        size: file.size || (safeBlob.size || 0), duration: meta || 0,
-        addedAt: new Date().toISOString(), source: 'upload'
+        size: file.size || 0, duration: meta || 0,
+        addedAt: new Date().toISOString(),
+        source: opts.sourceUrl ? 'url' : 'upload',
+        sourceUrl: opts.sourceUrl || ''
       });
       added++;
       lastId = id;
@@ -8958,7 +8960,7 @@ async function mpDownloadFromUrl(rawUrl) {
     if (!/\.(mp3|m4a|webm|opus|ogg|wav|flac|aac)$/i.test(filename)) filename += '.mp3';
     const file = new File([blob], filename, { type: blob.type });
 
-    await mpAddTracksFromFiles([file]);
+    await mpAddTracksFromFiles([file], { sourceUrl: url });
     if (input) input.value = '';
     setBtn('⬇ ДРЪПНИ', false);
     showToast(`✅ Свалено: ${file.name.slice(0, 40)}`, 3500);
@@ -9001,6 +9003,9 @@ async function mpSaveTrackAsset(id, blobOrFile) {
       tx.onerror = () => reject(tx.error || new Error('IDB put error'));
     });
   }
+  // Verify read-back — catches silent eviction / quota failures on iOS Safari
+  const verify = await getAssetRecord(MP_TRACK_ASSET_PREFIX + id).catch(() => null);
+  if (!verify || !verify.data) throw new Error('IDB verify failed — asset not persisted');
   return record;
 }
 
@@ -9016,12 +9021,46 @@ async function mpLoadTrackBlob(id) {
   return rec.blob || null;
 }
 
+// Re-fetch a track's audio bytes from its original URL when IDB asset was evicted.
+// Returns the fresh Blob and re-saves it to IDB so the next play is instant.
+async function mpRefetchTrackBlob(track) {
+  if (!track || !track.sourceUrl) return null;
+  showToast('🔄 Файлът е премахнат от браузъра — тегля пак...', 3500);
+  const resolveRes = await fetch('/api/music-fetch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: track.sourceUrl })
+  });
+  const resolveData = await resolveRes.json().catch(() => ({}));
+  if (!resolveRes.ok || !resolveData?.ok || !resolveData.downloadUrl) {
+    throw new Error(resolveData?.error || `HTTP ${resolveRes.status}`);
+  }
+  const fileRes = await fetch(resolveData.downloadUrl);
+  if (!fileRes.ok) throw new Error(`Download HTTP ${fileRes.status}`);
+  const upstreamType = fileRes.headers.get('content-type') || 'audio/mpeg';
+  const buf = await fileRes.arrayBuffer();
+  const blob = new Blob([buf], { type: upstreamType.startsWith('audio/') ? upstreamType : 'audio/mpeg' });
+  // Re-save under same id so future plays are instant
+  try {
+    await mpSaveTrackAsset(track.id, blob);
+    track.size = blob.size;
+    saveState();
+  } catch (e) { console.warn('refetch save failed', e); }
+  return blob;
+}
+
 async function mpPlayTrack(id) {
   ensureMusicState();
   const t = state.tracks.find(x => x.id === id);
   if (!t) return;
-  const blob = await mpLoadTrackBlob(id);
-  if (!blob) { showToast('⚠️ Файлът липсва'); return; }
+  let blob = await mpLoadTrackBlob(id);
+  if (!blob) {
+    // Asset evicted by browser — try to re-fetch from original URL if we have one
+    if (t.sourceUrl) {
+      blob = await mpRefetchTrackBlob(t).catch(() => null);
+    }
+    if (!blob) { showToast(t.sourceUrl ? '⚠️ Не успях да го изтегля пак' : '⚠️ Файлът липсва — изтегли пак'); return; }
+  }
   mpEnsureAudio();
   mpEnsureContext();
   mpInitMediaSession();
