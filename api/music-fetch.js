@@ -278,7 +278,12 @@ async function resolveAudio(req, url) {
     if (r2.ok) return r2;
     errors.push(...(r2.errors || []).slice(0, 3));
 
-    return { ok: false, error: 'YouTube е недостъпен от всички сървъри в момента — опитай след минута.', details: errors };
+    // Detect "video unavailable" (deleted/private/geo/age-gated) → user-friendly msg
+    const allErrors = errors.join(' | ').toLowerCase();
+    if (/unavailable|private|deleted|age.?restrict|geo|copyright|removed|sign.?in/.test(allErrors)) {
+      return { ok: false, error: 'Това видео е недостъпно (изтрито, private, age-restricted или геоблокирано). Пробвай друг линк.', details: errors };
+    }
+    return { ok: false, error: 'YouTube не отговаря в момента — опитай след минута или с друго видео.', details: errors };
   }
 
   // Non-YouTube → yt-dlp първо (поддържа SC/TikTok/Vimeo/Bandcamp/etc), Cobalt fallback
