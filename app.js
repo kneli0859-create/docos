@@ -8823,9 +8823,15 @@ function mpCleanTitle(name) {
 
 async function mpAddTracksFromFiles(fileList) {
   ensureMusicState();
-  const files = Array.from(fileList || []).filter(f => f && /^audio\//i.test(f.type) || /\.(mp3|wav|m4a|ogg|flac|aac|webm)$/i.test(f.name || ''));
-  if (!files.length) { showToast('⚠️ Избери аудио файл'); return; }
+  const files = Array.from(fileList || []).filter(f => {
+    if (!f) return false;
+    if (/^(audio|video)\//i.test(f.type || '')) return true;
+    if (/\.(mp3|wav|m4a|ogg|flac|aac|webm|opus|mp4|3gp|wma|amr)$/i.test(f.name || '')) return true;
+    return false;
+  });
+  if (!files.length) { showToast('⚠️ Файлът не е аудио формат'); return; }
   let added = 0;
+  let lastId = '';
   for (const file of files) {
     try {
       const id = uid();
@@ -8838,9 +8844,32 @@ async function mpAddTracksFromFiles(fileList) {
         addedAt: new Date().toISOString(), source: 'upload'
       });
       added++;
-    } catch (e) { console.warn('mpAdd failed', e); }
+      lastId = id;
+    } catch (e) {
+      console.warn('mpAdd failed', e);
+      showToast(`⚠️ Файлът не може да се запази: ${e.message || e}`.slice(0, 120), 5000);
+    }
   }
-  if (added) { saveState(); mpRenderLibrary(); mpRenderStats(); mpRenderAlarmSelectors(); showToast(`🎵 Добавени: ${added}`); }
+  if (added) {
+    saveState();
+    mpRenderLibrary();
+    mpRenderStats();
+    mpRenderAlarmSelectors();
+    showToast(`🎵 Добавени: ${added} — превърти надолу до библиотеката`, 4000);
+    // Scroll to the newly added track and flash it
+    setTimeout(() => {
+      const row = lastId && document.querySelector(`.mp-lib-row[data-track-id="${lastId}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.style.transition = 'background 0.6s';
+        row.style.background = 'rgba(212, 168, 67, 0.35)';
+        setTimeout(() => { row.style.background = ''; }, 1800);
+      } else {
+        // Fallback: scroll to library section
+        document.getElementById('mpLibList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 200);
+  }
 }
 
 async function mpProbeDuration(blob) {
