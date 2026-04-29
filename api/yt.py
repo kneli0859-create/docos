@@ -31,7 +31,7 @@ def _resolve(url: str):
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
-        "format": "bestaudio/best",
+        "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best[acodec!=none]",
         "noplaylist": True,
         "extractor_args": {
             # Use Android client → bypasses most PoToken / cipher requirements
