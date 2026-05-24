@@ -7630,3 +7630,76 @@ img,
 .dock-btn.dock-center .dock-label {
   display: none !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   REVERT — iPhone-style flat tab bar (6 равни ботона, без notch)
+   Šefe: 'плюса къде отиде — направи айфонски стил на ботоните.'
+   Връщам всички dock-center exceptions → плюсът е равен с другите.
+   ═══════════════════════════════════════════════════════════════════════ */
+.dock-btn.dock-center {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  flex: 1 1 0 !important;
+  z-index: auto !important;
+  padding: 6px 4px !important;
+}
+.dock-btn.dock-center:active {
+  transform: translateY(1px) scale(0.95) !important;
+}
+.dock-btn.dock-center .dock-icon {
+  position: static !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 1.5rem !important;
+  font-weight: 500 !important;
+  color: var(--accent) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  animation: none !important;
+  text-shadow: none !important;
+}
+.dock-btn.dock-center .dock-label {
+  display: block !important;
+  font-size: 0.56rem !important;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+  color: var(--text2);
+}
+
+/* Liquid Luxe — subtle gold tint за иконата + (но БЕЗ кръг, БЕЗ notch) */
+[data-theme="liquid-luxe"] .dock-btn.dock-center .dock-icon {
+  color: #C9A765 !important;
+  text-shadow: 0 0 8px rgba(201, 167, 101, 0.45);
+}
+[data-theme="liquid-luxe"] .dock-btn.dock-center.active .dock-icon,
+[data-theme="liquid-luxe"] .dock-btn.dock-center:hover .dock-icon {
+  color: #E8C97A !important;
+  text-shadow: 0 0 12px rgba(232, 201, 122, 0.65);
+}
+
+/* премахвам и notch-glow от bottom-dock::after (вече не нужен) */
+[data-theme="liquid-luxe"] .bottom-dock::after {
+  background: radial-gradient(circle,
+    rgba(201, 167, 101, 0.18) 0%,
+    rgba(201, 167, 101, 0.05) 30%,
+    transparent 70%);
+  filter: blur(18px);
+  width: auto;
+  height: 54px;
+  inset: auto 10% 16px;
+  transform: none;
+  opacity: 0.85;
+}
