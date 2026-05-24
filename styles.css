@@ -7395,3 +7395,156 @@ img,
 [data-theme="liquid-luxe"] .dock-btn.active:not(.dock-center)::after {
   background: radial-gradient(circle, rgba(201, 167, 101, 0.32), transparent 70%) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIQUID LUXE — Round 2 polish: sheet, sections, settings, hk-header
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Section title — gold gradient text */
+[data-theme="liquid-luxe"] .section-title,
+[data-theme="liquid-luxe"] .settings-group-title {
+  background: linear-gradient(135deg, #F5E6C8 0%, #C9A765 60%, #8B6F3F 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  filter: drop-shadow(0 0 12px rgba(201, 167, 101, 0.15));
+}
+
+/* hk-header (terminal prompt strip) — gold accents */
+[data-theme="liquid-luxe"] .hk-header {
+  border-bottom: 1px solid rgba(201, 167, 101, 0.14);
+}
+[data-theme="liquid-luxe"] .hk-prompt,
+[data-theme="liquid-luxe"] .hk-cmd {
+  color: #C9A765;
+}
+[data-theme="liquid-luxe"] .hk-dollar,
+[data-theme="liquid-luxe"] .hk-colon {
+  color: #B5AB97;
+}
+[data-theme="liquid-luxe"] .hk-path {
+  color: #F5E6C8;
+}
+[data-theme="liquid-luxe"] .hk-k {
+  color: #B5AB97;
+  letter-spacing: 0.04em;
+}
+[data-theme="liquid-luxe"] .hk-v {
+  color: #F5F0E6;
+  font-weight: 600;
+}
+[data-theme="liquid-luxe"] .hk-v.hk-big {
+  background: linear-gradient(135deg, #F5E6C8 0%, #C9A765 55%, #8B6F3F 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(201, 167, 101, 0.22));
+}
+[data-theme="liquid-luxe"] .hk-header-btn {
+  background: linear-gradient(135deg, rgba(201, 167, 101, 0.18), rgba(201, 167, 101, 0.06));
+  border: 1px solid rgba(201, 167, 101, 0.30);
+  color: #F5E6C8;
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: all 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+[data-theme="liquid-luxe"] .hk-header-btn:hover {
+  background: linear-gradient(135deg, rgba(201, 167, 101, 0.28), rgba(201, 167, 101, 0.10));
+  border-color: rgba(201, 167, 101, 0.50);
+  transform: translateY(-1px);
+}
+
+/* hk-clock — gold gradient + soft glow (sets up kinetic feel) */
+[data-theme="liquid-luxe"] .hk-clock {
+  background: linear-gradient(135deg, #F5E6C8 0%, #C9A765 50%, #8B6F3F 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 22px rgba(201, 167, 101, 0.30));
+  letter-spacing: -0.04em;
+}
+[data-theme="liquid-luxe"] .hk-blink {
+  color: #C9A765;
+}
+[data-theme="liquid-luxe"] .hk-greeting {
+  color: #C9A765;
+  letter-spacing: 0.04em;
+}
+
+/* link-btn — gold link */
+[data-theme="liquid-luxe"] .link-btn {
+  color: #C9A765;
+  transition: color 200ms ease;
+}
+[data-theme="liquid-luxe"] .link-btn:hover { color: #E8C97A; }
+
+/* Bottom sheet — premium glass */
+[data-theme="liquid-luxe"] .sheet {
+  background: linear-gradient(180deg, rgba(28, 25, 23, 0.96), rgba(10, 9, 8, 0.99));
+  backdrop-filter: blur(40px) saturate(160%);
+  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  border-top: 1px solid rgba(201, 167, 101, 0.22);
+  box-shadow: 0 -24px 70px rgba(0, 0, 0, 0.7);
+  border-radius: 24px 24px 0 0;
+}
+[data-theme="liquid-luxe"] .sheet-handle {
+  background: linear-gradient(90deg, transparent, rgba(201, 167, 101, 0.55), transparent);
+  height: 4px;
+  border-radius: 4px;
+}
+[data-theme="liquid-luxe"] .sheet-title {
+  background: linear-gradient(135deg, #F5E6C8, #C9A765);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+[data-theme="liquid-luxe"] .sheet-backdrop {
+  background: radial-gradient(ellipse at center, rgba(10, 9, 8, 0.78), rgba(0, 0, 0, 0.92));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Settings items — premium row */
+[data-theme="liquid-luxe"] .settings-item {
+  border-bottom: 1px solid rgba(201, 167, 101, 0.10);
+  padding: 0.8rem 0;
+  transition: background 200ms ease;
+}
+[data-theme="liquid-luxe"] .settings-item:hover {
+  background: linear-gradient(90deg, rgba(201, 167, 101, 0.06), transparent);
+}
+[data-theme="liquid-luxe"] .settings-value {
+  color: #C9A765;
+  font-weight: 600;
+}
+[data-theme="liquid-luxe"] .settings-note {
+  color: #8B7F6A;
+  font-style: italic;
+}
+
+/* Danger button — refined */
+[data-theme="liquid-luxe"] .danger-btn {
+  background: linear-gradient(135deg, rgba(192, 57, 43, 0.16), rgba(192, 57, 43, 0.06));
+  border: 1px solid rgba(192, 57, 43, 0.32);
+  color: #E8867A;
+  border-radius: 14px;
+  transition: all 220ms ease;
+}
+[data-theme="liquid-luxe"] .danger-btn:hover {
+  background: linear-gradient(135deg, rgba(192, 57, 43, 0.28), rgba(192, 57, 43, 0.12));
+  border-color: rgba(192, 57, 43, 0.55);
+}
+
+/* hk-cell + hk-cal-nav — fine accents */
+[data-theme="liquid-luxe"] .hk-cell {
+  border: 1px solid rgba(201, 167, 101, 0.08);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.008));
+  border-radius: 12px;
+}

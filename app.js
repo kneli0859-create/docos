@@ -21,6 +21,7 @@ const LAYOUTS = [
 ];
 
 const THEMES = [
+  { id: 'liquid-luxe',  label: 'Liquid Luxe', color: '#C9A765', preview: 'glow' },
   { id: 'matrix',       label: 'Matrix',    color: '#00ff41', preview: 'matrix' },
   { id: 'cyberpunk',    label: 'Cyberpunk', color: '#ff0080', preview: 'cyberpunk' },
   { id: 'synthwave',    label: 'Synthwave', color: '#ff6ec7', preview: 'synthwave' },
@@ -2974,7 +2975,7 @@ async function importBackupZip(file) {
     saveState();
     await hydrateRuntimePreviewUrls().catch(() => {});
     await refreshStorageEstimate(true).catch(() => {});
-    applyTheme(state.theme || 'black-blue');
+    applyTheme(state.theme || 'liquid-luxe');
     applyTemplate(state.template || 'classic');
     showTab(state.currentTab || 'dashboard');
     showToast('✅ Backup импортът е готов');
@@ -8626,7 +8627,7 @@ async function init() {
   getChoicesRuntime(2500).catch(() => null);
   getSortableRuntime(2500).catch(() => null);
   updateNotifBadge();
-  applyTheme(state.theme || 'black-blue');
+  applyTheme(state.theme || 'liquid-luxe');
   applyTemplate(state.template || 'classic');
   initEventListeners();
   initShellScrollStability();
