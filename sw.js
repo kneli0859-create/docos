@@ -1,5 +1,5 @@
-const DOCOS_SHELL_CACHE = 'docos-shell-v63';
-const DOCOS_RUNTIME_CACHE = 'docos-runtime-v8';
+const DOCOS_SHELL_CACHE = 'docos-shell-v64';
+const DOCOS_RUNTIME_CACHE = 'docos-runtime-v9';
 const DOCOS_VIDEO_CACHE = 'docos-video-v1';
 const DOCOS_CACHE_PREFIXES = ['docos-shell-', 'docos-runtime-', 'docos-video-'];
 const VIDEO_SEG_RE = /\.(m3u8|ts|m4s|mpd|init)(\?|$)/i;
