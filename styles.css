@@ -7548,3 +7548,85 @@ img,
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.008));
   border-radius: 12px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIQUID LUXE — FAB plus absolutely centered + lifted (notch стил)
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme="liquid-luxe"] .bottom-dock {
+  overflow: visible;
+}
+
+/* FAB plus излиза от flex flow → останалите 5 бутона flex-ват равно
+   → + плава absolute точно в геометричния center на dock-а */
+[data-theme="liquid-luxe"] .bottom-dock--6 .dock-btn.dock-center,
+[data-theme="liquid-luxe"] .dock-btn.dock-center {
+  position: absolute !important;
+  left: 50% !important;
+  top: -18px !important;
+  transform: translateX(-50%) !important;
+  width: 72px !important;
+  min-width: 72px !important;
+  height: auto !important;
+  padding: 0 !important;
+  flex: 0 0 auto !important;
+  z-index: 12;
+  pointer-events: auto;
+}
+
+/* iконата вече не нуждае от negative margin-top — целият бутон е повдигнат */
+[data-theme="liquid-luxe"] .dock-btn.dock-center .dock-icon {
+  margin-top: 0 !important;
+  width: 64px !important;
+  height: 64px !important;
+  font-size: 2rem !important;
+}
+
+/* Скриваме label под плюса (плюсът е достатъчно изразителен) */
+[data-theme="liquid-luxe"] .dock-btn.dock-center .dock-label {
+  display: none !important;
+}
+
+/* dock-а получава suptle "notch" — лек gradient зад FAB-а за визуална връзка */
+[data-theme="liquid-luxe"] .bottom-dock::after {
+  background: radial-gradient(circle at center,
+    rgba(201, 167, 101, 0.28) 0%,
+    rgba(201, 167, 101, 0.08) 30%,
+    transparent 65%);
+  filter: blur(14px);
+  width: 120px;
+  height: 60px;
+  inset: -16px auto auto 50%;
+  transform: translateX(-50%);
+  opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FAB plus — УНИВЕРСАЛЕН ЦЕНТЪР (всички теми)
+   С 6 бутона flexbox-ът поставя плюса на pos 3 = 42% (наляво от center).
+   Изваждаме го от flow → absolute точно в 50% + повдигнат над dock-а.
+   Останалите 5 бутона flex-ват равно → красива симетрия.
+   ═══════════════════════════════════════════════════════════════════════ */
+.bottom-dock { overflow: visible; }
+
+.dock-btn.dock-center {
+  position: absolute !important;
+  left: 50% !important;
+  top: -14px !important;
+  transform: translateX(-50%) !important;
+  width: 72px !important;
+  min-width: 72px !important;
+  height: auto !important;
+  padding: 0 !important;
+  flex: 0 0 auto !important;
+  z-index: 12 !important;
+  pointer-events: auto;
+}
+.dock-btn.dock-center:active {
+  transform: translateX(-50%) scale(0.94) !important;
+}
+.dock-btn.dock-center .dock-icon {
+  margin-top: 0 !important;
+}
+.dock-btn.dock-center .dock-label {
+  display: none !important;
+}
