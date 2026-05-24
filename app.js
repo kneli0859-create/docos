@@ -1190,14 +1190,23 @@ async function putAssetRecord(record) {
   };
 
   try {
-    return await writeRecord(record);
+    const saved = await writeRecord(record);
+    // ─── Облачен backup на blob-а (fire-and-forget) ───
+    if (saved && saved.id && saved.blob && window.DocOSCloud && typeof window.DocOSCloud.uploadAsset === 'function') {
+      window.DocOSCloud.uploadAsset(saved.id, saved.blob).catch(() => {});
+    }
+    return saved;
   } catch (e) {
     // Last-resort retry: re-normalize aggressively (handles edge cases on iOS)
     if (record && record.blob) {
       try {
         const buf = await record.blob.arrayBuffer();
         const fresh = new Blob([buf], { type: record.blob.type || 'application/octet-stream' });
-        return await writeRecord({ ...record, blob: fresh });
+        const saved = await writeRecord({ ...record, blob: fresh });
+        if (saved && saved.id && saved.blob && window.DocOSCloud && typeof window.DocOSCloud.uploadAsset === 'function') {
+          window.DocOSCloud.uploadAsset(saved.id, saved.blob).catch(() => {});
+        }
+        return saved;
       } catch (_) {}
     }
     throw e;
@@ -1207,17 +1216,36 @@ async function putAssetRecord(record) {
 async function getAssetRecord(id) {
   if (!id) return null;
   const db = await openAssetDb();
-  if (typeof db.get === 'function') return db.get(ASSET_STORE, id);
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(ASSET_STORE, 'readonly');
-    const req = tx.objectStore(ASSET_STORE).get(id);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error || new Error('IndexedDB get error'));
-  });
+  const local = await (async () => {
+    if (typeof db.get === 'function') return db.get(ASSET_STORE, id);
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(ASSET_STORE, 'readonly');
+      const req = tx.objectStore(ASSET_STORE).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error || new Error('IndexedDB get error'));
+    });
+  })();
+  if (local && local.blob) return local;
+  // ─── IDB miss → опитай cloud restore ───
+  if (window.DocOSCloud && typeof window.DocOSCloud.downloadAsset === 'function') {
+    try {
+      const cloudBlob = await window.DocOSCloud.downloadAsset(id);
+      if (cloudBlob) {
+        const restored = { id: id, blob: cloudBlob, restoredAt: Date.now() };
+        try { await putAssetRecord(restored); } catch (_) {}
+        return restored;
+      }
+    } catch (_) {}
+  }
+  return local;
 }
 
 async function deleteAssetRecord(id) {
   if (!id) return;
+  // ─── Облачно изтриване (fire-and-forget) ───
+  if (window.DocOSCloud && typeof window.DocOSCloud.deleteAsset === 'function') {
+    window.DocOSCloud.deleteAsset(id).catch(() => {});
+  }
   const db = await openAssetDb();
   if (typeof db.delete === 'function') {
     await db.delete(ASSET_STORE, id);

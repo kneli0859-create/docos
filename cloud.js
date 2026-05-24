@@ -410,5 +410,54 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  window.DocOSCloud = { pushState: pushState, pullState: pullState, openPanel: openPanel, getDeviceId: function () { return deviceId; } };
+  // ─── ASSET BLOB BACKUP — Supabase Storage bucket ───────────────────
+  // Файловете (снимки, документи) се качват в bucket-а 'docos-assets'
+  // → IDB може да се eviction-не, но облакът държи копие → restore при нужда.
+  var BUCKET = 'docos-assets';
+  async function uploadAsset(assetId, blob) {
+    if (!assetId || !blob) return false;
+    try {
+      await initClient();
+      if (!sb || !sb.storage) return false;
+      var path = (deviceId || 'anon') + '/' + assetId;
+      var ret = await sb.storage.from(BUCKET).upload(path, blob, {
+        upsert: true,
+        cacheControl: '604800',
+      });
+      if (ret.error) { console.warn('[cloud upload]', assetId, ret.error.message || ret.error); return false; }
+      return true;
+    } catch (e) { console.warn('[cloud upload]', e); return false; }
+  }
+  async function downloadAsset(assetId) {
+    if (!assetId) return null;
+    try {
+      await initClient();
+      if (!sb || !sb.storage) return null;
+      var path = (deviceId || 'anon') + '/' + assetId;
+      var ret = await sb.storage.from(BUCKET).download(path);
+      if (ret.error || !ret.data) return null;
+      return ret.data;
+    } catch (e) { return null; }
+  }
+  async function deleteAsset(assetId) {
+    if (!assetId) return false;
+    try {
+      await initClient();
+      if (!sb || !sb.storage) return false;
+      var path = (deviceId || 'anon') + '/' + assetId;
+      var ret = await sb.storage.from(BUCKET).remove([path]);
+      return !ret.error;
+    } catch (e) { return false; }
+  }
+
+  window.DocOSCloud = {
+    pushState: pushState,
+    pullState: pullState,
+    openPanel: openPanel,
+    getDeviceId: function () { return deviceId; },
+    uploadAsset: uploadAsset,
+    downloadAsset: downloadAsset,
+    deleteAsset: deleteAsset,
+    BUCKET: BUCKET,
+  };
 })();
