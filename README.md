@@ -2,7 +2,7 @@
 
 Личен PWA архив за документи, термини и напомняния.
 
-**Live:** https://docos.bgpomosht.eu
+**Live:** https://docs.svd-clean.de
 
 ## Технологии
 - Vanilla HTML / CSS / JavaScript (без билд)
