@@ -7703,3 +7703,188 @@ img,
   transform: none;
   opacity: 0.85;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FAB plus → плаващ bottom-right (iPhone/Telegram стил)
+   Šefe: 'истри този плюс и сложи нов на айфонски стил'
+   Изваждаме dock-center от dock-а → 5 равни ботона в dock-а.
+   Плюсът става плаващ кръгъл FAB над dock-а, дясно. Theme-aware accent.
+   ═══════════════════════════════════════════════════════════════════════ */
+.dock-btn.dock-center {
+  position: fixed !important;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px) + 14px) !important;
+  right: 16px !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+  z-index: 200 !important;
+  pointer-events: auto !important;
+  border-radius: 50% !important;
+  background: none !important;
+}
+
+.dock-btn.dock-center::before,
+.dock-btn.dock-center::after {
+  display: none !important;
+}
+
+.dock-btn.dock-center .dock-icon {
+  width: 58px !important;
+  height: 58px !important;
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,0.45) 0%, transparent 55%),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--accent) 75%, white) 0%,
+      var(--accent) 50%,
+      color-mix(in srgb, var(--accent) 60%, black) 100%) !important;
+  color: color-mix(in srgb, var(--bg) 80%, black) !important;
+  border: 1.5px solid rgba(255,255,255,0.30) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,0.55),
+    inset 0 -2px 0 rgba(0,0,0,0.20),
+    0 8px 24px var(--accent-glow, rgba(0,0,0,0.5)),
+    0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent) !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.25);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.95rem !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  animation: fab-float-breath 3.4s ease-in-out infinite;
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dock-btn.dock-center:active .dock-icon {
+  transform: scale(0.92);
+}
+.dock-btn.dock-center:hover .dock-icon {
+  transform: translateY(-2px);
+}
+
+.dock-btn.dock-center .dock-label {
+  display: none !important;
+}
+
+@keyframes fab-float-breath {
+  0%, 100% {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,0.55),
+      inset 0 -2px 0 rgba(0,0,0,0.20),
+      0 8px 24px var(--accent-glow, rgba(0,0,0,0.5)),
+      0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,0.65),
+      inset 0 -2px 0 rgba(0,0,0,0.20),
+      0 14px 34px var(--accent-glow, rgba(0,0,0,0.7)),
+      0 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-btn.dock-center .dock-icon { animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FIX за плаващ FAB — .bottom-dock има transform + contain → става
+   containing block за fixed-positioned child-ове. Премахваме (минимална
+   perf цена), за да може dock-center FAB-ът да plava относно viewport-а.
+   ═══════════════════════════════════════════════════════════════════════ */
+.bottom-dock {
+  transform: none !important;
+  -webkit-transform: none !important;
+  contain: none !important;
+  will-change: auto !important;
+  backface-visibility: visible !important;
+  -webkit-backface-visibility: visible !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FINAL FAB — clean gold премиум, видим, bottom-right
+   (Override на debug pink + слабия предишен styling)
+   ═══════════════════════════════════════════════════════════════════════ */
+.dock-btn.dock-center {
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  width: 60px !important;
+  height: 60px !important;
+  min-width: 60px !important;
+  position: fixed !important;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px) + 16px) !important;
+  right: 18px !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  flex: 0 0 auto !important;
+  z-index: 250 !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+.dock-btn.dock-center .dock-icon {
+  background: linear-gradient(135deg, #EBCD83 0%, #C9A765 50%, #8B6F3F 100%) !important;
+  border: 1.5px solid rgba(255,255,255,0.32) !important;
+  color: #1A1410 !important;
+  font-size: 1.95rem !important;
+  font-weight: 700 !important;
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,0.55),
+    inset 0 -2px 0 rgba(0,0,0,0.20),
+    0 10px 28px rgba(201,167,101,0.55),
+    0 0 0 5px rgba(201,167,101,0.14) !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.25) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  outline: none !important;
+  animation: fab-float-breath 3.4s ease-in-out infinite;
+}
+.dock-btn.dock-center:active .dock-icon {
+  transform: scale(0.92);
+}
+.dock-btn.dock-center .dock-label {
+  display: none !important;
+}
+
+/* FAB позициониран по-вляво (cloud sync icon е bottom-right) + max z-index */
+.dock-btn.dock-center {
+  right: 88px !important;
+  z-index: 999 !important;
+}
+
+/* FINAL FINAL — FAB на МАКС z-index, BR, доминира над cloud sync icon */
+.dock-btn.dock-center {
+  right: 18px !important;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px) + 18px) !important;
+  z-index: 2147483647 !important;
+  width: 64px !important;
+  height: 64px !important;
+  min-width: 64px !important;
+}
+.dock-btn.dock-center .dock-icon {
+  width: 64px !important;
+  height: 64px !important;
+  z-index: 2147483647 !important;
+}
+
+/* FAB долу-ВЛЯВО — cloud sync icon заема BR, изместваме FAB-а */
+.dock-btn.dock-center {
+  right: auto !important;
+  left: 18px !important;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px) + 18px) !important;
+}
